@@ -1,0 +1,77 @@
+{
+  "name": "playwright-custom-reporter",
+  "version": "1.0.0",
+  "description": "A custom reporter for Playwright with dashboard, detailed test results, and modern UI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npm run clean && npm run build:ts && npm run build:web && npm run copy:assets",
+    "build:ts": "tsc",
+    "build:web": "webpack --mode=production",
+    "build:dev": "npm run build:web && npm run copy:to-report",
+    "copy:assets": "cp src/web/trace.html dist/web/ 2>/dev/null || mkdir -p dist/web && cp src/web/trace.html dist/web/",
+    "copy:to-report": "cp dist/web/bundle.js example/custom-report/assets/ 2>/dev/null || echo 'Report directory not found'",
+    "serve-report": "npx ts-node src/server/serve-report.ts",
+    "show-report": "npm run serve-report",
+    "dev:serve": "npm run build:dev && npm run show-report",
+    "dev": "concurrently \"tsc --watch\" \"webpack --mode=development --watch\"",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:example": "npx playwright test --config=example.playwright.config.ts",
+    "lint": "eslint src/**/*.ts src/**/*.tsx",
+    "format": "prettier --write src/**/*.ts src/**/*.tsx"
+  },
+  "keywords": [
+    "playwright",
+    "reporter",
+    "testing",
+    "dashboard",
+    "html-report"
+  ],
+  "author": "Damien Hoffmann",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nam-edi/playwright-custom-reporter.git"
+  },
+  "homepage": "https://github.com/nam-edi/playwright-custom-reporter#readme",
+  "bugs": {
+    "url": "https://github.com/nam-edi/playwright-custom-reporter/issues"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "dependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "ts-loader": "^9.4.0",
+    "css-loader": "^6.8.0",
+    "style-loader": "^3.3.0",
+    "html-webpack-plugin": "^5.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "chart.js": "^4.4.0",
+    "react-chartjs-2": "^5.2.0",
+    "rimraf": "^5.0.0",
+    "jest": "^29.5.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "concurrently": "^8.0.0",
+    "ts-node": "^10.9.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.30.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
