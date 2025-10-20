@@ -32,37 +32,42 @@ npm install @naamedi/playwright-reporter
 Dans votre fichier `playwright.config.ts`:
 
 ```typescript
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   // ... autres configurations
   reporter: [
     [
-      '@naamedi/playwright-reporter',
+      "@naamedi/playwright-reporter",
       {
-        outputDir: './custom-report',        // Répertoire de sortie
-        title: 'Mon Rapport de Tests',       // Titre du rapport  
-        open: 'on-failure'                   // Ouverture automatique
-      }
-    ]
+        outputDir: "./custom-report", // Répertoire de sortie
+        title: "Mon Rapport de Tests", // Titre du rapport
+        open: "on-failure", // Ouverture automatique
+      },
+    ],
   ],
   use: {
-    trace: 'on',                            // Activer les traces
-    video: 'retain-on-failure',             // Vidéos en cas d'échec
-    screenshot: 'only-on-failure'           // Captures d'écran
-  }
+    trace: "on", // Activer les traces
+    video: "retain-on-failure", // Vidéos en cas d'échec
+    screenshot: "only-on-failure", // Captures d'écran
+  },
 });
 ```
 
 ### Utilisation avec import (TypeScript)
 
 ```typescript
-import { PlaywrightCustomReporter } from '@naamedi/playwright-reporter';
+import { PlaywrightCustomReporter } from "@naamedi/playwright-reporter";
 
 export default defineConfig({
   reporter: [
-    [PlaywrightCustomReporter, { /* options */ }]
-  ]
+    [
+      PlaywrightCustomReporter,
+      {
+        /* options */
+      },
+    ],
+  ],
 });
 ```
 
@@ -140,11 +145,13 @@ Le dashboard fournit des métriques détaillées :
 ## 🎨 Thèmes et personnalisation
 
 ### Mode sombre/clair
+
 - **Détection automatique** du thème système
 - **Commutateur manuel** dans l'interface
 - **Persistence** des préférences utilisateur
 
 ### Couleurs personnalisées
+
 Le système utilise des propriétés CSS personnalisées facilement modifiables :
 
 ```css
@@ -161,21 +168,24 @@ Le système utilise des propriétés CSS personnalisées facilement modifiables 
 ### Options du reporter
 
 ```typescript
-import { PlaywrightCustomReporter } from '@naamedi/playwright-reporter';
+import { PlaywrightCustomReporter } from "@naamedi/playwright-reporter";
 
 export default {
   reporter: [
-    [PlaywrightCustomReporter, {
-      outputDir: './custom-reports',
-      open: 'on-failure', // 'always' | 'never' | 'on-failure'
-      includeProjectInTestTitle: true,
-      attachments: {
-        screenshot: 'only-on-failure',
-        video: 'retain-on-failure',
-        trace: 'retain-on-failure'
-      }
-    }]
-  ]
+    [
+      PlaywrightCustomReporter,
+      {
+        outputDir: "./custom-reports",
+        open: "on-failure", // 'always' | 'never' | 'on-failure'
+        includeProjectInTestTitle: true,
+        attachments: {
+          screenshot: "only-on-failure",
+          video: "retain-on-failure",
+          trace: "retain-on-failure",
+        },
+      },
+    ],
+  ],
 };
 ```
 
