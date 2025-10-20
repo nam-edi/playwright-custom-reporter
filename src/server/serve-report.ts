@@ -281,7 +281,10 @@ function startServer(outputDir?: string, serverPort: number = 3737) {
 }
 
 // Export pour utilisation en tant que module
-export async function serveReport(outputDir?: string, port: number = 3737): Promise<void> {
+export async function serveReport(
+  outputDir?: string,
+  port: number = 3737
+): Promise<void> {
   return startServer(outputDir, port);
 }
 

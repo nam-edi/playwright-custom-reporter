@@ -25,7 +25,7 @@ export default defineConfig({
         open: "on-failure",
       },
     ],
-  ]
+  ],
 });
 ```
 
@@ -40,6 +40,7 @@ export default defineConfig({
 ## CLI - Serveur de développement
 
 ### Commande courte (recommandée)
+
 ```bash
 # Auto-détection du répertoire de rapport
 npx pw-serve
@@ -52,6 +53,7 @@ npx pw-serve -p 4000
 ```
 
 ### Installation globale (encore plus court)
+
 ```bash
 # Installation
 npm install -g @naamedi/playwright-reporter
@@ -63,6 +65,7 @@ pw-serve -p 4000
 ```
 
 ### Commande complète (alternative)
+
 ```bash
 npx @naamedi/playwright-reporter serve
 npx @naamedi/playwright-reporter --help
