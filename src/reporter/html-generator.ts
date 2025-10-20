@@ -45,7 +45,7 @@ export class PlaywrightCustomReporter extends DataCollector {
       console.log(`✅ Custom report generated: ${htmlPath}`);
       console.log("");
       console.log("📊 To view your report with working trace viewer, run:");
-      console.log("   npm run show-report");
+      console.log(`   npx pw-serve ${outputDir}`);
 
       return;
     } catch (error) {
@@ -281,7 +281,7 @@ ${JSON.stringify(reportData, null, 2)}
         });
         console.log(`📖 Opening report: ${htmlPath}`);
         console.log(
-          "⚠️  Note: For optimal experience with traces, use 'npm run show-report'"
+          `⚠️  Note: For optimal experience with traces, use 'npx pw-serve ${outputDir}'`
         );
         return;
       }
