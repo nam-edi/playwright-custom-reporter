@@ -54,11 +54,19 @@ function findReportDir() {
 }
 
 async function serve() {
-  let reportDir = args[1];
+  let reportDir = null;
   let port = 3737;
+  
+  // Déterminer l'index de départ selon la commande utilisée
+  let startIndex = 1;
+  if (args.length > 0 && args[0] === 'serve') {
+    startIndex = 1; // Commande longue: npx @naamedi/playwright-reporter serve [reportDir]
+  } else {
+    startIndex = 0; // Commande courte: npx pw-serve [reportDir]
+  }
 
   // Parse arguments
-  for (let i = 1; i < args.length; i++) {
+  for (let i = startIndex; i < args.length; i++) {
     if (args[i] === '--port' || args[i] === '-p') {
       port = parseInt(args[i + 1]) || 3737;
       i++; // Skip next argument
@@ -107,12 +115,17 @@ async function serve() {
 if (!command || command === '--help' || command === '-h') {
   showHelp();
 } else if (command === 'serve') {
+  // Commande longue: npx @naamedi/playwright-reporter serve [reportDir]
   serve().catch((error) => {
     console.error('❌ Error:', error.message);
     process.exit(1);
   });
 } else {
-  console.error(`❌ Unknown command: ${command}`);
-  showHelp();
-  process.exit(1);
+  
+  process.argv.splice(2, 1, 'serve', command);
+  
+  serve().catch((error) => {
+    console.error('❌ Error:', error.message);
+    process.exit(1);
+  });
 }

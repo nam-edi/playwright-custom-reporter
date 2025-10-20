@@ -63,16 +63,16 @@ export class PlaywrightCustomReporter extends DataCollector {
     }
 
     try {
-      console.log(`📦 Copying web assets from: ${webDistPath}`);
-      console.log(`📁 Target directory: ${targetPath}`);
+      // console.log(`📦 Copying web assets from: ${webDistPath}`);
+      // console.log(`📁 Target directory: ${targetPath}`);
 
       // Copier le bundle JavaScript
       const bundlePath = path.join(webDistPath, "bundle.js");
-      console.log(`🔍 Looking for bundle at: ${bundlePath}`);
+      //console.log(`🔍 Looking for bundle at: ${bundlePath}`);
 
       if (fs.existsSync(bundlePath)) {
         fs.copyFileSync(bundlePath, path.join(targetPath, "bundle.js"));
-        console.log(`✅ Copied bundle.js`);
+        // console.log(`✅ Copied bundle.js`);
       } else {
         console.warn(`⚠️  Bundle not found at: ${bundlePath}`);
       }
@@ -87,7 +87,7 @@ export class PlaywrightCustomReporter extends DataCollector {
         const destPath = path.join(targetPath, file);
         if (fs.existsSync(srcPath)) {
           fs.copyFileSync(srcPath, destPath);
-          console.log(`✅ Copied ${file}`);
+          // console.log(`✅ Copied ${file}`);
         }
       });
     } catch (error) {
@@ -121,7 +121,7 @@ export class PlaywrightCustomReporter extends DataCollector {
 
       // Copier tous les fichiers du visualiseur de traces
       this.copyDirectoryRecursive(traceViewerPath, traceDir);
-      console.log(`✅ Copied trace viewer from Playwright`);
+      // console.log(`✅ Copied trace viewer from Playwright`);
     } catch (error) {
       console.warn("Failed to copy trace viewer:", error);
     }
