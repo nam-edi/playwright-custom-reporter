@@ -1,4 +1,8 @@
-# Playwright Custom Reporter
+# @naamedi/playwright-reporter
+
+[![npm version](https://badge.fury.io/js/@naamedi%2Fplaywright-reporter.svg)](https://badge.fury.io/js/@naamedi%2Fplaywright-reporter)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-16%2B-green.svg)](https://nodejs.org/)
 
 Une librairie npm TypeScript moderne pour générer des rapports d'exécution Playwright personnalisés avec dashboard interactif, filtres avancés et visualiseur de traces intégré.
 
@@ -13,33 +17,53 @@ Une librairie npm TypeScript moderne pour générer des rapports d'exécution Pl
 - ⚡ **Visualiseur de traces intégré** (sans redirection externe)
 - 🏷️ **Système de tags** automatique et personnalisé
 - 🖥️ **Serveur HTTP intégré** avec détection automatique du outputDir
+- 🚀 **Ouverture automatique** du serveur selon vos préférences
 
 ## 🚀 Installation
 
 ```bash
-npm install playwright-custom-reporter
+npm install @naamedi/playwright-reporter
 ```
 
 ## 📖 Utilisation
 
+### Configuration rapide
+
 Dans votre fichier `playwright.config.ts`:
 
 ```typescript
-import { PlaywrightCustomReporter } from "playwright-custom-reporter";
+import { defineConfig } from '@playwright/test';
 
-export default {
-  reporter: [
-    ["html"], // Reporter HTML par défaut
-    [
-      PlaywrightCustomReporter,
-      {
-        outputDir: "./custom-report",
-        open: "never",
-      },
-    ],
-  ],
+export default defineConfig({
   // ... autres configurations
-};
+  reporter: [
+    [
+      '@naamedi/playwright-reporter',
+      {
+        outputDir: './custom-report',        // Répertoire de sortie
+        title: 'Mon Rapport de Tests',       // Titre du rapport  
+        open: 'on-failure'                   // Ouverture automatique
+      }
+    ]
+  ],
+  use: {
+    trace: 'on',                            // Activer les traces
+    video: 'retain-on-failure',             // Vidéos en cas d'échec
+    screenshot: 'only-on-failure'           // Captures d'écran
+  }
+});
+```
+
+### Utilisation avec import (TypeScript)
+
+```typescript
+import { PlaywrightCustomReporter } from '@naamedi/playwright-reporter';
+
+export default defineConfig({
+  reporter: [
+    [PlaywrightCustomReporter, { /* options */ }]
+  ]
+});
 ```
 
 ## Configuration
@@ -64,30 +88,6 @@ Le serveur détecte automatiquement le répertoire du rapport à partir de la co
 npm run serve-report /path/to/custom-report
 ```
 
-### Commandes disponibles
-
-#### Développement rapide
-
-```bash
-npm run dev:serve           # Build + copie + démarre le serveur (tout en un)
-npm run build:dev           # Build web + copie vers le rapport
-npm run show-report         # Sert le rapport (détection auto)
-```
-
-#### Tests et génération
-
-```bash
-npm run test:example        # Génère un exemple de rapport
-npm run copy:to-report      # Copie le bundle vers le rapport existant
-```
-
-#### Serveur
-
-```bash
-npm run serve-report        # Serveur avec détection automatique
-npm run serve-report /path  # Serveur avec répertoire spécifique
-```
-
 ## 🔍 Détection automatique
 
 Le serveur cherche automatiquement le répertoire de rapport dans cet ordre :
@@ -109,36 +109,135 @@ Le serveur cherche automatiquement le répertoire de rapport dans cet ordre :
    npm run serve-report /path/to/report
    ```
 
-## 🛠️ Développement
+## 🚀 Fonctionnalités avancées
 
-### Workflow de développement recommandé
+### Trace viewer intégré
 
-```bash
-# Développement rapide (recommandé)
-npm run dev:serve           # Build + copie + serveur en une commande
+Le reporter inclut un visualiseur de traces intégré qui ne dépend pas de trace.playwright.dev :
 
-# Ou étape par étape
-npm run build:dev           # Build web + copie vers rapport
-npm run show-report         # Démarre le serveur
+- **Visualisation locale** : Les traces sont servies directement depuis votre machine
+- **Pas de dépendance externe** : Fonctionne complètement offline
+- **Interface native** : Utilise la même interface que le rapport HTML natif de Playwright
 
-# Mode watch pour développement continu
-npm run dev                 # TypeScript + Webpack en watch mode
+### Serveur automatique
+
+Pour les options `open: "always"` ou `open: "on-failure"`, un serveur HTTP est automatiquement lancé :
+
+- **Port personnalisé** : Utilise le port 3737 par défaut
+- **Arrêt automatique** : Le serveur se ferme proprement à la fin des tests
+- **Gestion des connexions** : Suivi des connexions actives pour un arrêt gracieux
+
+## 📊 Métriques et statistiques
+
+Le dashboard fournit des métriques détaillées :
+
+- **Taux de réussite global** avec graphique en secteurs
+- **Distribution des durées** des tests
+- **Tests les plus lents** avec temps d'exécution
+- **Historique des exécutions** (si disponible)
+- **Statistiques par suite de tests**
+
+## 🎨 Thèmes et personnalisation
+
+### Mode sombre/clair
+- **Détection automatique** du thème système
+- **Commutateur manuel** dans l'interface
+- **Persistence** des préférences utilisateur
+
+### Couleurs personnalisées
+Le système utilise des propriétés CSS personnalisées facilement modifiables :
+
+```css
+:root {
+  --primary-color: #007acc;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --error-color: #dc3545;
+}
 ```
 
-### Commandes de build
+## 🔧 Configuration avancée
 
-```bash
-npm run build               # Build complet (production)
-npm run build:web          # Build des composants web uniquement
-npm run build:ts           # Build TypeScript uniquement
-npm run clean              # Nettoyer les builds
+### Options du reporter
+
+```typescript
+import { PlaywrightCustomReporter } from '@naamedi/playwright-reporter';
+
+export default {
+  reporter: [
+    [PlaywrightCustomReporter, {
+      outputDir: './custom-reports',
+      open: 'on-failure', // 'always' | 'never' | 'on-failure'
+      includeProjectInTestTitle: true,
+      attachments: {
+        screenshot: 'only-on-failure',
+        video: 'retain-on-failure',
+        trace: 'retain-on-failure'
+      }
+    }]
+  ]
+};
 ```
 
-### Tests et qualité
+### Serveur de développement
+
+Pour servir manuellement un rapport existant :
 
 ```bash
-npm run test               # Tests unitaires (Jest)
-npm run test:example       # Tests Playwright + génération de rapport
-npm run lint               # ESLint
-npm run format             # Prettier
+# Installation globale
+npm install -g @naamedi/playwright-reporter
+
+# Servir un rapport
+npx @naamedi/playwright-reporter serve ./playwright-report
 ```
+
+## 📦 Structure du projet
+
+```
+src/
+├── collector/          # Collecte des données pendant l'exécution
+│   └── data-collector.ts
+├── reporter/           # Logique principale du reporter
+│   ├── index.ts
+│   ├── html-generator.ts
+│   └── types.ts
+├── server/             # Serveur HTTP pour les rapports
+│   └── serve-report.ts
+└── web/               # Interface utilisateur React
+    ├── components/
+    ├── hooks/
+    └── styles/
+```
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! Voici comment contribuer :
+
+1. **Fork** le projet
+2. **Créez** une branche pour votre fonctionnalité (`git checkout -b feature/amazing-feature`)
+3. **Committez** vos changements (`git commit -m 'Add amazing feature'`)
+4. **Push** sur la branche (`git push origin feature/amazing-feature`)
+5. **Ouvrez** une Pull Request
+
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## 🐛 Signaler un bug
+
+Si vous trouvez un bug, veuillez créer une [issue](https://github.com/naamedi/playwright-reporter/issues) avec :
+
+- **Description** détaillée du problème
+- **Étapes** pour reproduire le bug
+- **Version** de Playwright utilisée
+- **Configuration** de votre projet
+
+## 📞 Support
+
+- 📖 **Documentation** : Consultez ce README
+- 🐛 **Issues** : [GitHub Issues](https://github.com/naamedi/playwright-reporter/issues)
+- 💬 **Discussions** : [GitHub Discussions](https://github.com/naamedi/playwright-reporter/discussions)
+
+---
+
+**Développé avec ❤️ par Naamedi**
