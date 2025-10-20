@@ -37,6 +37,37 @@ export default defineConfig({
 - Modern UI with dark/light mode
 - Integrated trace viewer (no external dependencies)
 
+## CLI - Serveur de développement
+
+### Commande courte (recommandée)
+```bash
+# Auto-détection du répertoire de rapport
+npx pw-serve
+
+# Spécifier un répertoire
+npx pw-serve ./custom-report
+
+# Utiliser un port personnalisé
+npx pw-serve -p 4000
+```
+
+### Installation globale (encore plus court)
+```bash
+# Installation
+npm install -g @naamedi/playwright-reporter
+
+# Utilisation
+pw-serve
+pw-serve ./custom-report
+pw-serve -p 4000
+```
+
+### Commande complète (alternative)
+```bash
+npx @naamedi/playwright-reporter serve
+npx @naamedi/playwright-reporter --help
+```
+
 ## License
 
 MIT

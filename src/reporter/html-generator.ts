@@ -46,11 +46,6 @@ export class PlaywrightCustomReporter extends DataCollector {
       console.log("");
       console.log("📊 To view your report with working trace viewer, run:");
       console.log("   npm run show-report");
-      console.log("");
-      console.log("Or manually:");
-      console.log(`   cd ${outputDir}`);
-      console.log("   npx serve -s . -p 3737");
-      console.log("   # Then open http://localhost:3737");
 
       return;
     } catch (error) {

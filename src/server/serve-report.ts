@@ -173,13 +173,12 @@ function createServer(reportDir: string) {
   return server;
 }
 
-function startServer() {
-  // Vérifier si un répertoire est spécifié en argument
-  const args = process.argv.slice(2);
+function startServer(outputDir?: string, serverPort: number = 3737) {
+  // Utiliser le répertoire fourni ou détecter automatiquement
   let reportDir: string | null = null;
 
-  if (args.length > 0) {
-    const specifiedDir = path.resolve(process.cwd(), args[0]);
+  if (outputDir) {
+    const specifiedDir = path.resolve(process.cwd(), outputDir);
     if (fs.existsSync(specifiedDir)) {
       reportDir = specifiedDir;
       console.log(`📁 Using specified directory: ${reportDir}`);
@@ -188,7 +187,20 @@ function startServer() {
       process.exit(1);
     }
   } else {
-    reportDir = findReportDirectory();
+    // Vérifier si un répertoire est spécifié en argument (pour CLI direct)
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+      const specifiedDir = path.resolve(process.cwd(), args[0]);
+      if (fs.existsSync(specifiedDir)) {
+        reportDir = specifiedDir;
+        console.log(`📁 Using specified directory: ${reportDir}`);
+      } else {
+        console.error(`❌ Specified directory does not exist: ${specifiedDir}`);
+        process.exit(1);
+      }
+    } else {
+      reportDir = findReportDirectory();
+    }
   }
 
   if (!reportDir) {
@@ -210,7 +222,7 @@ function startServer() {
   console.log(`📁 Serving report from: ${reportDir}`);
 
   const server = createServer(reportDir);
-  const port = process.env.PORT || 3737;
+  const port = serverPort;
 
   server.listen(port, () => {
     const url = `http://localhost:${port}`;
@@ -268,5 +280,12 @@ function startServer() {
   process.on("SIGINT", handleShutdown);
 }
 
-// Démarrer le serveur
-startServer();
+// Export pour utilisation en tant que module
+export async function serveReport(outputDir?: string, port: number = 3737): Promise<void> {
+  return startServer(outputDir, port);
+}
+
+// Démarrer le serveur si exécuté directement
+if (require.main === module) {
+  startServer();
+}

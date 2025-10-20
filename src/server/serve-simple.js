@@ -51,12 +51,7 @@ function serveReport() {
     });
 
     python.on('error', () => {
-      console.error('❌ Could not start server. Please install serve:');
-      console.error('   npm install -g serve');
-      console.error('');
-      console.error('Or manually serve the directory:');
-      console.error(`   cd "${reportDir}"`);
-      console.error('   python3 -m http.server 8080');
+      console.error('❌ Could not start server.');
     });
   });
 

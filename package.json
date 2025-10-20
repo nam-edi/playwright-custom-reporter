@@ -39,8 +39,13 @@
   "bugs": {
     "url": "https://github.com/nam-edi/playwright-custom-reporter/issues"
   },
+  "bin": {
+    "@naamedi/playwright-reporter": "./bin/cli.js",
+    "pw-serve": "./bin/cli.js"
+  },
   "files": [
     "dist/",
+    "bin/",
     "README.md"
   ],
   "dependencies": {
