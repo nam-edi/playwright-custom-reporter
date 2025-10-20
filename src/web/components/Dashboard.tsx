@@ -32,9 +32,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
   const { metadata } = reportData;
   
   const formatDuration = (ms: number): string => {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}m`;
+    if (ms < 1000) return `${ms.toFixed(2)}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+    
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(2);
+    return `${minutes}m ${seconds}s`;
   };
 
   const passRate = metadata.totalTests > 0 
@@ -49,10 +52,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
     ? (metadata.skipped / metadata.totalTests) * 100 
     : 0;
 
+  const flakyRate = metadata.totalTests > 0 
+    ? (metadata.flaky / metadata.totalTests) * 100 
+    : 0;
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
         <h1>Test Execution Report</h1>
+        {(metadata.name || metadata.environment || metadata.version || metadata.user) && (
+          <div className="project-info">
+            {metadata.name && <span>Name: {metadata.name}</span>}
+            {metadata.environment && <span>Environment: {metadata.environment}</span>}
+            {metadata.version && <span>Version: {metadata.version}</span>}
+            {metadata.user && <span>User: {metadata.user}</span>}
+          </div>
+        )}
         <div className="report-info">
           <span>Started: {metadata.startTime.toLocaleString()}</span>
           <span>Duration: {formatDuration(metadata.duration)}</span>
@@ -83,6 +98,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
           value={metadata.skipped}
           color="#d97706"
           percentage={skipRate}
+        />
+        <MetricCard
+          title="Flaky"
+          value={metadata.flaky}
+          color="#f59e0b"
+          percentage={flakyRate}
         />
         <MetricCard
           title="Timed Out"

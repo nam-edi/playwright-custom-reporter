@@ -31,6 +31,8 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
     search: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   // Extraire les valeurs uniques pour les filtres
   const uniqueStatuses = useMemo(() => {
@@ -43,12 +45,16 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
 
   const uniqueTags = useMemo(() => {
     const allTags = tests.flatMap(test => test.tags);
-    return Array.from(new Set(allTags)).sort();
+    const projects = new Set(tests.map(test => test.project));
+    const filteredTags = allTags.filter(tag => !projects.has(tag));
+    return Array.from(new Set(filteredTags)).sort();
   }, [tests]);
 
   const maxDuration = useMemo(() => {
     return Math.max(...tests.map(test => test.duration), 0);
   }, [tests]);
+
+  // Plus de regroupement - logique supprimée pour simplifier
 
   // Filtrer et trier les tests
   const filteredAndSortedTests = useMemo(() => {
@@ -106,6 +112,15 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
     return filtered;
   }, [tests, filters, sortField, sortDirection]);
 
+  // Pagination simple
+  const paginatedTests = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredAndSortedTests.slice(startIndex, endIndex);
+  }, [filteredAndSortedTests, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredAndSortedTests.length / pageSize);
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -145,6 +160,17 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
       maxDuration: Number.MAX_SAFE_INTEGER,
       search: ''
     });
+  };
+
+  // Fonctions de regroupement supprimées
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset à la première page
   };
 
   const formatDuration = (ms: number): string => {
@@ -188,6 +214,7 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
               className="search-input"
             />
           </div>
+          {/* Contrôles de vue supprimés pour simplifier */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`filter-toggle ${showFilters ? 'active' : ''}`}
@@ -196,6 +223,9 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
           </button>
           <div className="results-count">
             {filteredAndSortedTests.length} of {tests.length} tests
+          </div>
+          <div className="pagination-info">
+            Page {currentPage} of {totalPages}
           </div>
         </div>
 
@@ -302,7 +332,7 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedTests.map(test => (
+            {paginatedTests.map(test => (
               <tr
                 key={test.id}
                 onClick={() => onTestSelect(test)}
@@ -311,18 +341,36 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                 <td className="status-cell">
                   <span className="status-badge" style={{ color: getStatusColor(test.status) }}>
                     {getStatusIcon(test.status)} {test.status}
+                    {test.isFlaky && <span className="flaky-badge">⚠️</span>}
                   </span>
                 </td>
                 <td className="test-title">
                   <div className="title-content">
-                    <span className="title-text">{test.title}</span>
-                    {test.line && <span className="line-number">:{test.line}</span>}
+                    <span className="full-title">
+                      {test.describeBlocks.length > 0 && (
+                        <>
+                          {test.describeBlocks
+                            .filter(block => !block.includes('chromium') && !block.includes('firefox') && !block.includes('webkit'))
+                            .map((block, index, filteredArray) => (
+                              <span key={index} className="describe-block">
+                                {block}
+                                {index < filteredArray.length - 1 && ' > '}
+                              </span>
+                            ))}
+                          {test.describeBlocks.filter(block => !block.includes('chromium') && !block.includes('firefox') && !block.includes('webkit')).length > 0 && ' > '}
+                        </>
+                      )}
+                      <span className="title-text">{test.title}</span>
+                    </span>
                   </div>
                 </td>
                 <td className="file-cell">
-                  <span className="file-path" title={test.file}>
-                    {test.file.split('/').pop()}
-                  </span>
+                  <div className="file-info">
+                    <span className="file-path" title={test.file}>
+                      {test.file.split('/').pop()}
+                    </span>
+                    {test.line && <span className="line-number">:{test.line}</span>}
+                  </div>
                 </td>
                 <td className="duration-cell">
                   <span className={`duration ${test.duration > 10000 ? 'slow' : test.duration > 5000 ? 'medium' : 'fast'}`}>
@@ -334,12 +382,19 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                 </td>
                 <td className="tags-cell">
                   <div className="tags-container">
-                    {test.tags.slice(0, 3).map(tag => (
-                      <span key={tag} className="tag">{tag}</span>
-                    ))}
-                    {test.tags.length > 3 && (
-                      <span className="tag-more">+{test.tags.length - 3}</span>
-                    )}
+                    {(() => {
+                      const filteredTags = test.tags.filter(tag => !uniqueProjects.includes(tag));
+                      return (
+                        <>
+                          {filteredTags.slice(0, 3).map(tag => (
+                            <span key={tag} className="tag">{tag}</span>
+                          ))}
+                          {filteredTags.length > 3 && (
+                            <span className="tag-more">+{filteredTags.length - 3}</span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </td>
                 <td className="retries-cell">
@@ -361,6 +416,85 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination-controls">
+          <div className="pagination-info-detail">
+            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredAndSortedTests.length)} of {filteredAndSortedTests.length} tests
+          </div>
+          
+          <div className="pagination-size">
+            <label>Tests per page:</label>
+            <select 
+              value={pageSize} 
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="page-size-select"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+          </div>
+
+          <div className="pagination-buttons">
+            <button 
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="pagination-button"
+            >
+              ⏮️ First
+            </button>
+            <button 
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="pagination-button"
+            >
+              ◀️ Previous
+            </button>
+            
+            <div className="page-numbers">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`page-number ${currentPage === pageNum ? 'active' : ''}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button 
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="pagination-button"
+            >
+              ▶️ Next
+            </button>
+            <button 
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="pagination-button"
+            >
+              ⏭️ Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

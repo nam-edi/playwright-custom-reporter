@@ -23,11 +23,19 @@ export default defineConfig({
         outputDir: "./custom-report",
         title: "Test Report",
         open: "on-failure",
+        name: "Nom du projet ou campagne",
+        environment: "Preprod",
+        version: "1.2.3",
+        user: "Naamedi",
       },
     ],
   ],
 });
 ```
+
+### Variables optionnelles
+
+Les variables `name`, `environment`, `version`, `user` sont facultatives. Si renseignées, elles apparaîtront dans le dashboard du rapport sous le titre principal.
 
 ## Features
 

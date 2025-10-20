@@ -11,6 +11,7 @@ import {
   TestExecutionData,
   TestSuiteData,
   TestAttachment,
+  DescribeBlock,
 } from "../types";
 import * as fs from "fs";
 import * as path from "path";
@@ -20,6 +21,10 @@ export interface ReporterOptions {
   title?: string;
   open?: "always" | "never" | "on-failure";
   attachmentsBaseURL?: string;
+  name?: string;
+  environment?: string;
+  version?: string;
+  user?: string;
 }
 
 export class DataCollector implements Reporter {
@@ -46,8 +51,13 @@ export class DataCollector implements Reporter {
         failed: 0,
         skipped: 0,
         timedOut: 0,
+        flaky: 0,
         playwrightVersion: "",
         projects: [],
+        name: this.options.name,
+        environment: this.options.environment,
+        version: this.options.version,
+        user: this.options.user,
       },
       suites: [],
       config: {
@@ -81,7 +91,7 @@ export class DataCollector implements Reporter {
     suiteData.tests.push(testData);
 
     // Mettre à jour les statistiques
-    this.updateMetrics(result.status);
+    this.updateMetrics(result.status, testData.isFlaky);
   }
 
   onEnd(result: FullResult): void {
@@ -110,6 +120,7 @@ export class DataCollector implements Reporter {
         title: suite.title || "Root Suite",
         file: suite.location?.file || "",
         tests: [],
+        describes: [],
         duration: 0,
         status: "passed",
       };
@@ -126,6 +137,12 @@ export class DataCollector implements Reporter {
     result: TestResult
   ): TestExecutionData {
     const attachments = this.processAttachments(result.attachments);
+
+    // Détecter si le test est flaky (a échoué puis réussi dans les retries)
+    const isFlaky = result.retry > 0 && result.status === "passed";
+
+    // Extraire la hiérarchie des describe blocks
+    const describeBlocks = this.extractDescribeHierarchy(test);
 
     return {
       id: this.generateId(),
@@ -152,6 +169,8 @@ export class DataCollector implements Reporter {
       retries: result.retry,
       workerIndex: result.workerIndex,
       project: test.parent.project()?.name || "default",
+      isFlaky,
+      describeBlocks,
     };
   }
 
@@ -230,13 +249,26 @@ export class DataCollector implements Reporter {
       tags.push(match[1]);
     }
 
-    // Ajouter le projet comme tag
-    const projectName = test.parent.project()?.name;
-    if (projectName) {
-      tags.push(`project:${projectName}`);
+    return tags;
+  }
+
+  private extractDescribeHierarchy(test: TestCase): string[] {
+    const hierarchy: string[] = [];
+    let current: Suite | undefined = test.parent;
+
+    while (current && current.title) {
+      hierarchy.unshift(current.title);
+      current = current.parent;
     }
 
-    return tags;
+    // Filtrer les titres vides ou qui correspondent au nom du fichier
+    return hierarchy.filter(
+      (title) =>
+        title &&
+        title.trim() !== "" &&
+        !title.endsWith(".spec.ts") &&
+        !title.endsWith(".test.ts")
+    );
   }
 
   private findOrCreateSuite(suite: Suite): TestSuiteData {
@@ -250,6 +282,7 @@ export class DataCollector implements Reporter {
         title: suite.title || "Unknown Suite",
         file: suite.location?.file || "",
         tests: [],
+        describes: [],
         duration: 0,
         status: "passed",
       };
@@ -259,8 +292,12 @@ export class DataCollector implements Reporter {
     return suiteData;
   }
 
-  private updateMetrics(status: string): void {
+  private updateMetrics(status: string, isFlaky: boolean = false): void {
     this.reportData.metadata.totalTests++;
+
+    if (isFlaky) {
+      this.reportData.metadata.flaky++;
+    }
 
     switch (status) {
       case "passed":

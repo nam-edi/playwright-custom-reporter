@@ -13,6 +13,8 @@ export interface TestExecutionData {
   retries: number;
   workerIndex: number;
   project: string;
+  isFlaky: boolean; // Test qui a échoué puis réussi lors des retries
+  describeBlocks: string[]; // Hiérarchie des describe blocks
 }
 
 export interface TestError {
@@ -33,11 +35,24 @@ export interface TestAttachment {
   type: "video" | "screenshot" | "trace" | "other";
 }
 
+export interface DescribeBlock {
+  id: string;
+  title: string;
+  file: string;
+  line?: number;
+  tests: TestExecutionData[];
+  subDescribes: DescribeBlock[];
+  duration: number;
+  status: "passed" | "failed" | "skipped";
+  isExpanded?: boolean; // Pour l'UI - par défaut plié sauf si contient des tests échoués
+}
+
 export interface TestSuiteData {
   id: string;
   title: string;
   file: string;
   tests: TestExecutionData[];
+  describes: DescribeBlock[];
   duration: number;
   status: "passed" | "failed" | "skipped";
 }
@@ -52,8 +67,14 @@ export interface ReportData {
     failed: number;
     skipped: number;
     timedOut: number;
+    flaky: number; // Nombre de tests flaky
     playwrightVersion: string;
     projects: string[];
+    // Informations optionnelles du projet
+    name?: string;
+    environment?: string;
+    version?: string;
+    user?: string;
   };
   suites: TestSuiteData[];
   config: {

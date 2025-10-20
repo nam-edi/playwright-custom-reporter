@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tests'>('dashboard');
 
   useEffect(() => {
     loadReportData();
@@ -91,18 +92,38 @@ const App: React.FC = () => {
 
       <main className="app-main">
         <div className="main-content">
-          <section className="dashboard-section">
-            <Dashboard reportData={reportData} />
-          </section>
+          <div className="main-tabs">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+            >
+              📊 Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('tests')}
+              className={`tab-button ${activeTab === 'tests' ? 'active' : ''}`}
+            >
+              🧪 Tests ({allTests.length})
+            </button>
+          </div>
 
-          <section className="table-section">
-            <h2>Test Results</h2>
-            <TestTable
-              tests={allTests}
-              onTestSelect={handleTestSelect}
-              selectedTestId={selectedTest?.id}
-            />
-          </section>
+          <div className="tab-content">
+            {activeTab === 'dashboard' && (
+              <section className="dashboard-section">
+                <Dashboard reportData={reportData} />
+              </section>
+            )}
+
+            {activeTab === 'tests' && (
+              <section className="table-section">
+                <TestTable
+                  tests={allTests}
+                  onTestSelect={handleTestSelect}
+                  selectedTestId={selectedTest?.id}
+                />
+              </section>
+            )}
+          </div>
         </div>
 
         <TestDetailPanel
