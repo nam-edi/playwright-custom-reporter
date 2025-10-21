@@ -186,8 +186,14 @@ export class DataCollector implements Reporter {
       };
 
       if (attachment.path) {
-        // Copier le fichier vers le répertoire de rapport
-        const fileName = path.basename(attachment.path);
+        // Copier le fichier vers le répertoire de rapport avec un nom unique
+        const originalFileName = path.basename(attachment.path);
+        const fileExtension = path.extname(originalFileName);
+        const baseName = path.basename(originalFileName, fileExtension);
+        const uniqueId = `${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const fileName = `${baseName}_${uniqueId}${fileExtension}`;
         const destPath = path.join(
           this.options.outputDir!,
           "attachments",
@@ -210,7 +216,59 @@ export class DataCollector implements Reporter {
           console.warn(`Failed to copy attachment: ${attachment.path}`, error);
         }
       } else if (attachment.body) {
-        attachmentData.body = attachment.body;
+        // Pour les traces avec body (données embarquées), les sauvegarder comme fichiers
+        if (attachmentData.type === "trace") {
+          const uniqueId = `${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+          const fileName = `${attachment.name.replace(
+            /\.[^/.]+$/,
+            ""
+          )}_${uniqueId}.zip`;
+          const destPath = path.join(
+            this.options.outputDir!,
+            "attachments",
+            fileName
+          );
+
+          // Créer le répertoire s'il n'existe pas
+          const attachmentsDir = path.dirname(destPath);
+          if (!fs.existsSync(attachmentsDir)) {
+            fs.mkdirSync(attachmentsDir, { recursive: true });
+          }
+
+          try {
+            // Convertir le Buffer en fichier
+            let buffer: Buffer;
+            if (
+              attachment.body &&
+              typeof attachment.body === "object" &&
+              attachment.body.type === "Buffer"
+            ) {
+              buffer = Buffer.from(attachment.body.data);
+            } else {
+              buffer = Buffer.from(attachment.body);
+            }
+
+            fs.writeFileSync(destPath, buffer);
+            attachmentData.path = path.relative(
+              this.options.outputDir!,
+              destPath
+            );
+            // Ne pas inclure le body pour les traces sauvegardées
+            delete attachmentData.body;
+          } catch (error) {
+            console.warn(
+              `Failed to save trace attachment: ${attachment.name}`,
+              error
+            );
+            // Fallback: garder le body si la sauvegarde échoue
+            attachmentData.body = attachment.body;
+          }
+        } else {
+          // Pour les autres types d'attachments, garder le body
+          attachmentData.body = attachment.body;
+        }
       }
 
       return attachmentData;

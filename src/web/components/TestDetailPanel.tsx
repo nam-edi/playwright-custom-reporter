@@ -15,24 +15,31 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
 
   if (!test) return null;
 
-  const openTraceViewer = async (attachment: TestAttachment) => {
-    if (!attachment.path) return;
+    const openTraceViewer = (attachment: TestAttachment) => {
+    const currentUrl = window.location;
+    const isHttpProtocol = currentUrl.protocol === 'http:' || currentUrl.protocol === 'https:';
     
-    try {
-      // Ouvrir le visualiseur de traces local de Playwright avec chemin complet
-      const currentUrl = window.location;
-      const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
-      const traceViewerUrl = `${baseUrl}/trace/index.html?trace=${baseUrl}/${attachment.path}`;
-      console.log('Opening trace viewer:', traceViewerUrl);
-      window.open(traceViewerUrl, '_blank');
-    } catch (error) {
-      console.error('Failed to open trace viewer:', error);
-      // Fallback: téléchargement direct
-      const link = document.createElement('a');
-      link.href = attachment.path;
-      link.download = attachment.path.split('/').pop() || 'trace.zip';
-      link.click();
+    if (!isHttpProtocol) {
+      // File protocol - show error like native Playwright reporter
+      alert('Le visualiseur de trace Playwright doit être chargé via les protocoles http:// ou https://.\n\nVeuillez utiliser : npx playwright show-report');
+      return;
     }
+    
+    // HTTP/HTTPS protocol - construct trace URL like native reporter
+    let traceUrl = attachment.path || '';
+    if (!traceUrl.startsWith('http')) {
+      const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
+      if (currentUrl.pathname.includes('/')) {
+        const pathParts = currentUrl.pathname.split('/').slice(0, -1);
+        traceUrl = `${baseUrl}${pathParts.join('/')}/${attachment.path}`;
+      } else {
+        traceUrl = `${baseUrl}/${attachment.path}`;
+      }
+    }
+    
+    // Always use local trace viewer (like native reporter)
+    const localTraceViewer = `trace/index.html?trace=${encodeURIComponent(traceUrl)}`;
+    window.open(localTraceViewer, '_blank');
   };
 
   const formatDuration = (ms: number): string => {
@@ -112,7 +119,7 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
                     onClick={() => openTraceViewer(attachment)}
                     className="trace-viewer-button"
                   >
-                    🔍 Ouvrir la trace
+                    🔍 View Trace
                   </button>
                   <a 
                     href={attachment.path} 
@@ -121,12 +128,6 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
                   >
                     📥 Télécharger
                   </a>
-                </div>
-                <div className="trace-instructions">
-                  <p><strong>Options de visualisation :</strong></p>
-                  <p>• <strong>Visualiseur en ligne :</strong> Cliquez sur "Ouvrir dans le visualiseur" pour voir la trace directement dans votre navigateur</p>
-                  <p>• <strong>Local :</strong> Téléchargez et exécutez <code>npx playwright show-trace {attachment.name}</code></p>
-                  <p>• <strong>Drag & Drop :</strong> Glissez le fichier téléchargé dans <a href="https://trace.playwright.dev" target="_blank" rel="noopener">trace.playwright.dev</a></p>
                 </div>
               </div>
             </div>
