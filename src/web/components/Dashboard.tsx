@@ -62,10 +62,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
         <h1>Test Execution Report</h1>
         {(metadata.name || metadata.environment || metadata.version || metadata.user) && (
           <div className="project-info">
-            {metadata.name && <span>Name: {metadata.name}</span>}
-            {metadata.environment && <span>Environment: {metadata.environment}</span>}
-            {metadata.version && <span>Version: {metadata.version}</span>}
-            {metadata.user && <span>User: {metadata.user}</span>}
+            {metadata.name && <span><span className="label">Name:</span> <span className="value">{metadata.name}</span></span>}
+            {metadata.environment && <span><span className="label">Environment:</span> <span className="value">{metadata.environment}</span></span>}
+            {metadata.version && <span><span className="label">Version:</span> <span className="value">{metadata.version}</span></span>}
+            {metadata.user && <span><span className="label">User:</span> <span className="value">{metadata.user}</span></span>}
           </div>
         )}
         <div className="report-info">

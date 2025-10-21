@@ -93,7 +93,60 @@ function createServer(reportDir: string) {
         urlPath = "/index.html";
       }
 
-      console.log(`📡 ${req.method} ${fullUrl} -> ${urlPath}`);
+      // console.log(`📡 ${req.method} ${fullUrl} -> ${urlPath}`);
+
+      // Route spéciale pour servir le contenu des fichiers de code
+      if (urlPath.startsWith("/api/file-content")) {
+        const url = new URL(fullUrl, `http://${req.headers.host}`);
+        const filePath = url.searchParams.get("path");
+        const lineNumber = parseInt(url.searchParams.get("line") || "0");
+
+        if (!filePath) {
+          res.writeHead(400);
+          res.end("Missing file path parameter");
+          return;
+        }
+
+        try {
+          // Vérifier que le fichier existe et est accessible
+          if (!fs.existsSync(filePath)) {
+            res.writeHead(404);
+            res.end("File not found");
+            return;
+          }
+
+          const fileContent = fs.readFileSync(filePath, "utf8");
+          const lines = fileContent.split("\n");
+
+          if (lineNumber > 0) {
+            // Retourner le contexte de 3 lignes autour de la ligne demandée
+            const startLine = Math.max(0, lineNumber - 2);
+            const endLine = Math.min(lines.length, lineNumber + 1);
+            const contextLines = lines.slice(startLine, endLine);
+
+            const result = {
+              lines: contextLines.map((line, index) => ({
+                number: startLine + index + 1,
+                content: line,
+                isTarget: startLine + index + 1 === lineNumber,
+              })),
+              targetLine: lineNumber,
+            };
+
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(result));
+          } else {
+            // Retourner tout le fichier
+            res.writeHead(200, { "Content-Type": "text/plain" });
+            res.end(fileContent);
+          }
+          return;
+        } catch (error) {
+          res.writeHead(500);
+          res.end("Error reading file");
+          return;
+        }
+      }
 
       // Construire le chemin du fichier
       const filePath = path.join(reportDir, urlPath.substring(1));

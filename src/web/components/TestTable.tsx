@@ -1,6 +1,76 @@
 import React, { useState, useMemo } from 'react';
 import { TestExecutionData } from '../../types';
 
+// Fonction pour générer une couleur unique basée sur le nom du tag
+const getTagColor = (tag: string): { background: string; color: string; border: string } => {
+  // Palette de base - 20 couleurs claires avec contours foncés
+  const baseColors = [
+    { bg: '#EBF4FF', text: '#1E40AF', border: '#3B82F6' }, // Blue light
+    { bg: '#ECFDF5', text: '#065F46', border: '#10B981' }, // Emerald light
+    { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B' }, // Amber light
+    { bg: '#FEE2E2', text: '#991B1B', border: '#EF4444' }, // Red light
+    { bg: '#F3E8FF', text: '#581C87', border: '#8B5CF6' }, // Violet light
+    { bg: '#CFFAFE', text: '#155E75', border: '#06B6D4' }, // Cyan light
+    { bg: '#F7FEE7', text: '#365314', border: '#84CC16' }, // Lime light
+    { bg: '#FED7AA', text: '#9A3412', border: '#F97316' }, // Orange light
+    { bg: '#FCE7F3', text: '#9D174D', border: '#EC4899' }, // Pink light
+    { bg: '#E0E7FF', text: '#3730A3', border: '#6366F1' }, // Indigo light
+    { bg: '#F0FDFA', text: '#134E4A', border: '#14B8A6' }, // Teal light
+    { bg: '#FEFCE8', text: '#713F12', border: '#EAB308' }, // Yellow light
+    { bg: '#FECACA', text: '#7F1D1D', border: '#DC2626' }, // Red-600 light
+    { bg: '#DDD6FE', text: '#5B21B6', border: '#7C3AED' }, // Violet-600 light
+    { bg: '#D1FAE5', text: '#047857', border: '#059669' }, // Emerald-600 light
+    { bg: '#CFFAFE', text: '#0E7490', border: '#0891B2' }, // Cyan-600 light
+    { bg: '#ECFCCB', text: '#3F6212', border: '#65A30D' }, // Lime-600 light
+    { bg: '#FED7AA', text: '#C2410C', border: '#EA580C' }, // Orange-600 light
+    { bg: '#FECDD3', text: '#9F1239', border: '#BE185D' }, // Pink-700 light
+    { bg: '#C7D2FE', text: '#312E81', border: '#4338CA' }, // Indigo-700 light
+  ];
+
+  // Fonction pour générer une couleur HSL
+  const generateHSLColor = (hue: number, saturation: number = 85, lightness: number = 92): { background: string; color: string; border: string } => {
+    const bgColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    const textColor = `hsl(${hue}, ${saturation + 15}%, ${lightness - 75}%)`;
+    const borderColor = `hsl(${hue}, ${saturation + 10}%, ${lightness - 35}%)`;
+    
+    return {
+      background: bgColor,
+      color: textColor,
+      border: borderColor
+    };
+  };
+
+  // Créer un hash simple du nom du tag
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    const char = tag.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir en 32bit integer
+  }
+  
+  const absHash = Math.abs(hash);
+  
+  // Si on a moins de 20 tags, utiliser les couleurs de base
+  if (absHash < baseColors.length * 1000) {
+    const colorIndex = absHash % baseColors.length;
+    const selectedColor = baseColors[colorIndex];
+    
+    return {
+      background: selectedColor.bg,
+      color: selectedColor.text,
+      border: selectedColor.border
+    };
+  }
+  
+  // Pour plus de 20 tags, générer des couleurs HSL avec une distribution uniforme
+  const hueStep = 360 / 25; // Diviser le cercle de couleur en 25 sections
+  const hueOffset = (absHash % 25) * hueStep;
+  const saturationVariation = 70 + (absHash % 30); // 70-100% saturation
+  const lightnessVariation = 88 + (absHash % 8); // 88-96% lightness
+  
+  return generateHSLColor(hueOffset, saturationVariation, lightnessVariation);
+};
+
 interface TestTableProps {
   tests: TestExecutionData[];
   onTestSelect: (test: TestExecutionData) => void;
@@ -201,6 +271,48 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
     }
   };
 
+  // Fonction pour générer les couleurs de gélule de statut
+  const getStatusPillColors = (status: string): { background: string; color: string; border: string } => {
+    switch (status) {
+      case 'passed': 
+        return {
+          background: '#DCFCE7', // Vert très clair
+          color: '#15803D',       // Vert foncé pour le texte
+          border: '#16A34A'       // Vert moyen pour la bordure
+        };
+      case 'failed': 
+        return {
+          background: '#FEE2E2', // Rouge très clair
+          color: '#991B1B',       // Rouge foncé pour le texte
+          border: '#DC2626'       // Rouge moyen pour la bordure
+        };
+      case 'skipped': 
+        return {
+          background: '#FEF3C7', // Orange très clair
+          color: '#92400E',       // Orange foncé pour le texte
+          border: '#D97706'       // Orange moyen pour la bordure
+        };
+      case 'timedOut': 
+        return {
+          background: '#FEF3C7', // Orange très clair
+          color: '#7C2D12',       // Orange très foncé pour le texte
+          border: '#DC2626'       // Rouge pour la bordure
+        };
+      case 'interrupted': 
+        return {
+          background: '#FED7AA', // Orange clair
+          color: '#9A3412',       // Orange foncé pour le texte
+          border: '#EA580C'       // Orange vif pour la bordure
+        };
+      default: 
+        return {
+          background: '#F1F5F9', // Gris très clair
+          color: '#475569',       // Gris foncé pour le texte
+          border: '#6B7280'       // Gris moyen pour la bordure
+        };
+    }
+  };
+
   return (
     <div className="test-table-container">
       <div className="table-header">
@@ -241,8 +353,15 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                       checked={filters.status.includes(status)}
                       onChange={() => toggleFilter('status', status)}
                     />
-                    <span style={{ color: getStatusColor(status) }}>
-                      {getStatusIcon(status)} {status}
+                    <span 
+                      className="status-pill filter-status"
+                      style={{
+                        backgroundColor: getStatusPillColors(status).background,
+                        color: getStatusPillColors(status).color,
+                        borderColor: getStatusPillColors(status).border
+                      }}
+                    >
+                      {status.toUpperCase()}
                     </span>
                   </label>
                 ))}
@@ -268,16 +387,28 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
             <div className="filter-section">
               <h4>Tags</h4>
               <div className="filter-options tags-filter">
-                {uniqueTags.map(tag => (
-                  <label key={tag} className="filter-checkbox tag-item">
-                    <input
-                      type="checkbox"
-                      checked={filters.tags.includes(tag)}
-                      onChange={() => toggleFilter('tags', tag)}
-                    />
-                    <span className="tag">{tag}</span>
-                  </label>
-                ))}
+                {uniqueTags.map(tag => {
+                  const tagColors = getTagColor(tag);
+                  return (
+                    <label key={tag} className="filter-checkbox tag-item">
+                      <input
+                        type="checkbox"
+                        checked={filters.tags.includes(tag)}
+                        onChange={() => toggleFilter('tags', tag)}
+                      />
+                      <span 
+                        className="tag"
+                        style={{
+                          backgroundColor: tagColors.background,
+                          color: tagColors.color,
+                          borderColor: tagColors.border
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
@@ -339,8 +470,15 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                 className={`test-row ${selectedTestId === test.id ? 'selected' : ''} status-${test.status}`}
               >
                 <td className="status-cell">
-                  <span className="status-badge" style={{ color: getStatusColor(test.status) }}>
-                    {getStatusIcon(test.status)} {test.status}
+                  <span 
+                    className="status-pill"
+                    style={{
+                      backgroundColor: getStatusPillColors(test.status).background,
+                      color: getStatusPillColors(test.status).color,
+                      borderColor: getStatusPillColors(test.status).border
+                    }}
+                  >
+                    {test.status.toUpperCase()}
                     {test.isFlaky && <span className="flaky-badge">⚠️</span>}
                   </span>
                 </td>
@@ -386,9 +524,22 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                       const filteredTags = test.tags.filter(tag => !uniqueProjects.includes(tag));
                       return (
                         <>
-                          {filteredTags.slice(0, 3).map(tag => (
-                            <span key={tag} className="tag">{tag}</span>
-                          ))}
+                          {filteredTags.slice(0, 3).map(tag => {
+                            const tagColors = getTagColor(tag);
+                            return (
+                              <span 
+                                key={tag} 
+                                className="tag"
+                                style={{
+                                  backgroundColor: tagColors.background,
+                                  color: tagColors.color,
+                                  borderColor: tagColors.border
+                                }}
+                              >
+                                {tag}
+                              </span>
+                            );
+                          })}
                           {filteredTags.length > 3 && (
                             <span className="tag-more">+{filteredTags.length - 3}</span>
                           )}

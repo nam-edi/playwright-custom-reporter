@@ -11,6 +11,8 @@ import {
   TestExecutionData,
   TestSuiteData,
   TestAttachment,
+  TestAnnotation,
+  TestStep,
   DescribeBlock,
 } from "../types";
 import * as fs from "fs";
@@ -32,6 +34,7 @@ export class DataCollector implements Reporter {
   private reportData: ReportData;
   protected options: ReporterOptions;
   private startTime: Date = new Date();
+  private stepIdCounter: number = 0;
 
   constructor(options: ReporterOptions = {}) {
     this.options = {
@@ -165,6 +168,8 @@ export class DataCollector implements Reporter {
           : undefined,
       })),
       tags: this.extractTags(test),
+      annotations: this.extractAnnotations(test),
+      steps: this.extractSteps(result),
       attachments,
       retries: result.retry,
       workerIndex: result.workerIndex,
@@ -299,15 +304,149 @@ export class DataCollector implements Reporter {
 
   private extractTags(test: TestCase): string[] {
     const tags: string[] = [];
-
-    // Extraire les tags du titre (ex: @smoke, @regression)
     const tagRegex = /@(\w+)/g;
+
+    // Extraire les tags du titre du test
     let match;
     while ((match = tagRegex.exec(test.title)) !== null) {
       tags.push(match[1]);
     }
 
+    // Parcourir la hiérarchie des suites parentes pour hériter des tags
+    let current: Suite | undefined = test.parent;
+    while (current && current.title) {
+      // Réinitialiser la regex pour cette suite
+      tagRegex.lastIndex = 0;
+      while ((match = tagRegex.exec(current.title)) !== null) {
+        // Ajouter seulement si le tag n'est pas déjà présent
+        if (!tags.includes(match[1])) {
+          tags.push(match[1]);
+        }
+      }
+      current = current.parent;
+    }
+
     return tags;
+  }
+
+  private extractAnnotations(test: TestCase): TestAnnotation[] {
+    const annotations: TestAnnotation[] = [];
+
+    // Les annotations Playwright sont stockées dans test.annotations
+    if (test.annotations) {
+      test.annotations.forEach((annotation) => {
+        annotations.push({
+          type: annotation.type || "info",
+          description: annotation.description || "",
+        });
+      });
+    }
+
+    return annotations;
+  }
+
+  private extractSteps(result: TestResult): TestStep[] {
+    const steps: TestStep[] = [];
+
+    if (result.steps) {
+      // Réinitialiser le compteur pour chaque test
+      this.stepIdCounter = 0;
+      result.steps.forEach((step, index) => {
+        steps.push(this.convertStep(step, index, `test_${Date.now()}`));
+      });
+    }
+
+    return steps;
+  }
+
+  private convertStep(
+    step: any,
+    index: number,
+    testPrefix: string = ""
+  ): TestStep {
+    const uniqueId = `${testPrefix}_step_${++this.stepIdCounter}`;
+    const result: TestStep = {
+      id: uniqueId,
+      title: step.title || step.titlePath?.join(" › ") || `Step ${index + 1}`,
+      category: step.category || "action",
+      startTime: step.startTime ? new Date(step.startTime) : new Date(),
+      duration: step.duration || 0,
+      location: step.location
+        ? {
+            file: step.location.file,
+            line: step.location.line,
+            column: step.location.column,
+          }
+        : undefined,
+      error: step.error
+        ? {
+            message: step.error.message || "",
+            stack: step.error.stack,
+            location: step.error.location
+              ? {
+                  file: step.error.location.file,
+                  line: step.error.location.line,
+                  column: step.error.location.column,
+                }
+              : undefined,
+          }
+        : undefined,
+      steps: step.steps
+        ? step.steps.map((subStep: any, subIndex: number) =>
+            this.convertStep(subStep, subIndex, testPrefix)
+          )
+        : undefined,
+    };
+
+    // Ajouter le contexte de code directement dans les données
+    if (result.location?.file && result.location?.line) {
+      const codeContext = this.extractCodeContext(
+        result.location.file,
+        result.location.line
+      );
+      if (codeContext) {
+        result.codeContext = codeContext;
+      }
+    }
+
+    return result;
+  }
+
+  private extractCodeContext(filePath: string, lineNumber: number) {
+    try {
+      // Vérifier que le fichier existe et est accessible
+      if (!fs.existsSync(filePath)) {
+        return null;
+      }
+
+      const content = fs.readFileSync(filePath, "utf-8");
+      const lines = content.split("\n");
+
+      // Obtenir les 3 lignes (précédente, actuelle, suivante)
+      const startLine = Math.max(0, lineNumber - 2); // -1 pour l'index, -1 pour ligne précédente
+      const endLine = Math.min(lines.length, lineNumber + 1);
+
+      const contextLines = [];
+      for (let i = startLine; i < endLine; i++) {
+        contextLines.push({
+          number: i + 1,
+          content: lines[i] || "",
+          isCurrent: i + 1 === lineNumber,
+        });
+      }
+
+      return {
+        file: filePath,
+        targetLine: lineNumber,
+        lines: contextLines,
+      };
+    } catch (error) {
+      console.warn(
+        `Failed to extract code context for ${filePath}:${lineNumber}`,
+        error
+      );
+      return null;
+    }
   }
 
   private extractDescribeHierarchy(test: TestCase): string[] {

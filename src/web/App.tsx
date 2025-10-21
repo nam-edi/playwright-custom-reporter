@@ -6,17 +6,69 @@ import { ThemeProvider, ThemeToggle } from './components/ThemeProvider';
 import { ReportData, TestExecutionData } from '../types';
 import './styles.css';
 
+// Utilitaires pour gérer les query parameters
+const getQueryParam = (param: string): string | null => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(param);
+};
+
+const setQueryParam = (param: string, value: string | null) => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (value) {
+    urlParams.set(param, value);
+  } else {
+    urlParams.delete(param);
+  }
+  
+  const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+  window.history.replaceState({}, '', newUrl);
+};
+
 const App: React.FC = () => {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [selectedTest, setSelectedTest] = useState<TestExecutionData | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tests'>('dashboard');
+  // Initialiser l'onglet actif depuis l'URL ou par défaut 'dashboard'
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tests'>(() => {
+    const tabFromUrl = getQueryParam('tab');
+    return (tabFromUrl === 'tests' || tabFromUrl === 'dashboard') ? tabFromUrl : 'dashboard';
+  });
 
   useEffect(() => {
     loadReportData();
   }, []);
+
+  // Charger l'état depuis l'URL une fois les données chargées
+  useEffect(() => {
+    if (reportData) {
+      loadStateFromUrl();
+    }
+  }, [reportData]);
+
+  const loadStateFromUrl = () => {
+    const testId = getQueryParam('testId');
+    if (testId) {
+      // Trouver le test par ID
+      const allTests = reportData!.suites.flatMap(suite => suite.tests);
+      const test = allTests.find(t => t.id === testId);
+      if (test) {
+        setSelectedTest(test);
+        setIsPanelOpen(true);
+        // S'assurer qu'on est sur l'onglet tests si un test est sélectionné
+        if (activeTab !== 'tests') {
+          setActiveTab('tests');
+          setQueryParam('tab', 'tests');
+        }
+      }
+    }
+  };
+
+  const updateUrlState = (tab: 'dashboard' | 'tests', testId?: string | null) => {
+    setQueryParam('tab', tab);
+    setQueryParam('testId', testId || null);
+  };
 
   const loadReportData = async () => {
     try {
@@ -48,11 +100,25 @@ const App: React.FC = () => {
   const handleTestSelect = (test: TestExecutionData) => {
     setSelectedTest(test);
     setIsPanelOpen(true);
+    updateUrlState('tests', test.id);
   };
 
   const handlePanelClose = () => {
     setIsPanelOpen(false);
     setSelectedTest(null);
+    updateUrlState(activeTab, null);
+  };
+
+  const handleTabChange = (tab: 'dashboard' | 'tests') => {
+    setActiveTab(tab);
+    // Si on change d'onglet et qu'un test est sélectionné, on garde le test seulement sur l'onglet tests
+    if (tab === 'dashboard' && selectedTest) {
+      setSelectedTest(null);
+      setIsPanelOpen(false);
+      updateUrlState(tab, null);
+    } else {
+      updateUrlState(tab, selectedTest?.id);
+    }
   };
 
   if (isLoading) {
@@ -94,13 +160,13 @@ const App: React.FC = () => {
         <div className="main-content">
           <div className="main-tabs">
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleTabChange('dashboard')}
               className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
               📊 Dashboard
             </button>
             <button
-              onClick={() => setActiveTab('tests')}
+              onClick={() => handleTabChange('tests')}
               className={`tab-button ${activeTab === 'tests' ? 'active' : ''}`}
             >
               🧪 Tests ({allTests.length})

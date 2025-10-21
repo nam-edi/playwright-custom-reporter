@@ -1,3 +1,32 @@
+export interface TestAnnotation {
+  type: string;
+  description: string;
+}
+
+export interface TestStep {
+  id: string;
+  title: string;
+  category: string;
+  startTime: Date;
+  duration: number;
+  error?: TestError;
+  location?: {
+    file: string;
+    line: number;
+    column?: number;
+  };
+  codeContext?: {
+    file: string;
+    targetLine: number;
+    lines: Array<{
+      number: number;
+      content: string;
+      isCurrent: boolean;
+    }>;
+  };
+  steps?: TestStep[]; // Pour les étapes imbriquées
+}
+
 export interface TestExecutionData {
   id: string;
   title: string;
@@ -9,6 +38,8 @@ export interface TestExecutionData {
   endTime: Date;
   errors?: TestError[];
   tags: string[];
+  annotations: TestAnnotation[];
+  steps?: TestStep[];
   attachments: TestAttachment[];
   retries: number;
   workerIndex: number;
