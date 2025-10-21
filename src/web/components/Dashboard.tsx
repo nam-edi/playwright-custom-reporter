@@ -40,6 +40,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
     return `${minutes}m ${seconds}s`;
   };
 
+  // Récupérer la liste unique des projets depuis tous les tests
+  const uniqueProjects = Array.from(
+    new Set(
+      reportData.suites.flatMap(suite => 
+        suite.tests.map(test => test.project)
+      )
+    )
+  ).sort();
+
   const passRate = metadata.totalTests > 0 
     ? (metadata.passed / metadata.totalTests) * 100 
     : 0;
@@ -179,7 +188,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
           <div className="stats-list">
             <div className="stat-item">
               <span className="stat-label">Projects:</span>
-              <span className="stat-value">{metadata.projects.join(', ')}</span>
+              <span className="stat-value">{uniqueProjects.join(', ')}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Suites:</span>

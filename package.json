@@ -1,6 +1,6 @@
 {
   "name": "@naamedi/playwright-reporter",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A custom reporter for Playwright with dashboard, detailed test results, and modern UI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,7 +18,7 @@
     "clean": "rimraf dist",
     "prepublishOnly": "npm run build",
     "test": "jest",
-    "test:example": "npx playwright test --config=example.playwright.config.ts",
+    "test:example": "npx playwright test --project=chromium --config=example.playwright.config.ts",
     "lint": "eslint src/**/*.ts src/**/*.tsx",
     "format": "prettier --write src/**/*.ts src/**/*.tsx"
   },
