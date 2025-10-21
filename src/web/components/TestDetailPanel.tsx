@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TestExecutionData, TestAttachment, TestAnnotation, TestStep, TestRetryInfo, formatErrorMessage, formatStackTrace, generateAIPrompt } from '../../types';
-import { AIPromptButton } from './AIPromptButton';
+import { TestExecutionData, TestAttachment, TestAnnotation, TestStep, TestRetryInfo, formatErrorMessage, formatStackTrace } from '../../types';
 
 // Fonction pour générer une couleur unique basée sur le nom du tag
 const getTagColor = (tag: string): { background: string; color: string; border: string } => {
@@ -107,21 +106,6 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
   });
   const [selectedAttachment, setSelectedAttachment] = useState<TestAttachment | null>(null);
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
-  const [aiPrompt, setAiPrompt] = useState<string | null>(null);
-
-  // Générer le prompt AI pour les tests échoués
-  useEffect(() => {
-    if (test && (test.status === 'failed' || test.status === 'timedOut') && test.errors && test.errors.length > 0) {
-      generateAIPrompt(test).then(prompt => {
-        setAiPrompt(prompt || null);
-      }).catch(error => {
-        console.warn('Failed to generate AI prompt:', error);
-        setAiPrompt(null);
-      });
-    } else {
-      setAiPrompt(null);
-    }
-  }, [test]);
 
   // Synchroniser l'onglet avec l'URL quand le panneau s'ouvre/ferme
   useEffect(() => {
@@ -533,20 +517,6 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
       <div className="panel-content">
         {activeTab === 'overview' && (
           <div className="overview-tab">
-            {aiPrompt && (
-              <div className="ai-prompt-section">
-                <div className="ai-prompt-header">
-                  <h3>🤖 AI Assistance</h3>
-                  <p>Get AI help to analyze and fix this test failure</p>
-                </div>
-                <div className="ai-prompt-actions">
-                  <AIPromptButton 
-                    prompt={aiPrompt}
-                    style={{ marginBottom: '1.5rem' }}
-                  />
-                </div>
-              </div>
-            )}
             <div className="info-grid">
               <div className="info-item">
                 <label>File:</label>

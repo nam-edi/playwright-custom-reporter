@@ -1,5 +1,4 @@
 export * from "./utils/ansi-to-html";
-export * from "./utils/ai-prompt";
 
 export interface TestAnnotation {
   type: string;
