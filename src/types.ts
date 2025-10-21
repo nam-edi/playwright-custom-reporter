@@ -1,3 +1,5 @@
+export * from "./utils/ansi-to-html";
+
 export interface TestAnnotation {
   type: string;
   description: string;
@@ -27,6 +29,15 @@ export interface TestStep {
   steps?: TestStep[]; // Pour les étapes imbriquées
 }
 
+export interface TestRetryInfo {
+  attempt: number;
+  status: "passed" | "failed" | "skipped" | "timedOut" | "interrupted";
+  duration: number;
+  startTime: Date;
+  endTime: Date;
+  errors?: TestError[];
+}
+
 export interface TestExecutionData {
   id: string;
   title: string;
@@ -46,6 +57,7 @@ export interface TestExecutionData {
   project: string;
   isFlaky: boolean; // Test qui a échoué puis réussi lors des retries
   describeBlocks: string[]; // Hiérarchie des describe blocks
+  retryHistory?: TestRetryInfo[]; // Historique de tous les essais
 }
 
 export interface TestError {

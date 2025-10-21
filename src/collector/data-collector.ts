@@ -14,6 +14,7 @@ import {
   TestAnnotation,
   TestStep,
   DescribeBlock,
+  TestRetryInfo,
 } from "../types";
 import * as fs from "fs";
 import * as path from "path";
@@ -35,6 +36,8 @@ export class DataCollector implements Reporter {
   protected options: ReporterOptions;
   private startTime: Date = new Date();
   private stepIdCounter: number = 0;
+  private testResults: Map<string, { results: TestResult[]; test: TestCase }> =
+    new Map();
 
   constructor(options: ReporterOptions = {}) {
     this.options = {
@@ -87,17 +90,20 @@ export class DataCollector implements Reporter {
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
-    const testData = this.createTestExecutionData(test, result);
+    // Créer un identifiant unique pour le test basé sur le fichier et le titre
+    const testId = this.getTestId(test);
 
-    // Trouver la suite correspondante et ajouter le test
-    const suiteData = this.findOrCreateSuite(test.parent);
-    suiteData.tests.push(testData);
-
-    // Mettre à jour les statistiques
-    this.updateMetrics(result.status, testData.isFlaky);
+    // Stocker tous les résultats pour ce test (incluant les retries)
+    if (!this.testResults.has(testId)) {
+      this.testResults.set(testId, { results: [], test });
+    }
+    this.testResults.get(testId)!.results.push(result);
   }
 
   onEnd(result: FullResult): void {
+    // Traiter tous les tests collectés et déterminer leur statut final
+    this.processAllTests();
+
     this.reportData.metadata.endTime = new Date();
     this.reportData.metadata.duration =
       this.reportData.metadata.endTime.getTime() -
@@ -114,6 +120,73 @@ export class DataCollector implements Reporter {
 
     // Sauvegarder les données collectées
     this.saveReportData();
+  }
+
+  private getTestId(test: TestCase): string {
+    // Créer un identifiant unique basé sur le projet, le fichier et le titre complet
+    const projectName = test.parent.project()?.name || "default";
+    return `${projectName}:${test.location.file}:${test.location.line}:${test.title}`;
+  }
+
+  private processAllTests(): void {
+    // Traiter chaque test unique et déterminer son statut final
+    for (const [testId, { results, test }] of this.testResults.entries()) {
+      const finalResult = this.determineFinalTestResult(results);
+      const isFlaky = this.isTestFlaky(results);
+      const retryHistory = this.createRetryHistory(results);
+
+      const testData = this.createTestExecutionData(
+        test,
+        finalResult,
+        isFlaky,
+        retryHistory
+      );
+
+      // Trouver la suite correspondante et ajouter le test
+      const suiteData = this.findOrCreateSuite(test.parent);
+      suiteData.tests.push(testData);
+
+      // Mettre à jour les statistiques (une seule fois par test unique)
+      this.updateMetrics(finalResult.status, isFlaky);
+    }
+  }
+
+  private determineFinalTestResult(results: TestResult[]): TestResult {
+    // Le résultat final est celui de la dernière exécution
+    return results[results.length - 1];
+  }
+
+  private createRetryHistory(results: TestResult[]): TestRetryInfo[] {
+    return results.map((result, index) => ({
+      attempt: index,
+      status: result.status,
+      duration: result.duration,
+      startTime: new Date(result.startTime),
+      endTime: new Date(result.startTime.getTime() + result.duration),
+      errors: result.errors?.map((error) => ({
+        message: error.message || "",
+        stack: error.stack,
+        location: error.location
+          ? {
+              file: error.location.file,
+              line: error.location.line,
+              column: error.location.column,
+            }
+          : undefined,
+      })),
+    }));
+  }
+
+  private isTestFlaky(results: TestResult[]): boolean {
+    // Un test est flaky s'il a échoué au moins une fois puis réussi au final
+    if (results.length <= 1) return false;
+
+    const finalResult = results[results.length - 1];
+    const hasFailure = results
+      .slice(0, -1)
+      .some((r) => r.status === "failed" || r.status === "timedOut");
+
+    return hasFailure && finalResult.status === "passed";
   }
 
   private collectSuiteData(suite: Suite): void {
@@ -137,12 +210,17 @@ export class DataCollector implements Reporter {
 
   private createTestExecutionData(
     test: TestCase,
-    result: TestResult
+    result: TestResult,
+    isFlaky?: boolean,
+    retryHistory?: TestRetryInfo[]
   ): TestExecutionData {
     const attachments = this.processAttachments(result.attachments);
 
     // Détecter si le test est flaky (a échoué puis réussi dans les retries)
-    const isFlaky = result.retry > 0 && result.status === "passed";
+    const testIsFlaky =
+      isFlaky !== undefined
+        ? isFlaky
+        : result.retry > 0 && result.status === "passed";
 
     // Extraire la hiérarchie des describe blocks
     const describeBlocks = this.extractDescribeHierarchy(test);
@@ -174,8 +252,9 @@ export class DataCollector implements Reporter {
       retries: result.retry,
       workerIndex: result.workerIndex,
       project: test.parent.project()?.name || "default",
-      isFlaky,
+      isFlaky: testIsFlaky,
       describeBlocks,
+      retryHistory,
     };
   }
 

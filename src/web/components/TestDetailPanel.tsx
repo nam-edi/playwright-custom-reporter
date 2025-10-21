@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TestExecutionData, TestAttachment, TestAnnotation, TestStep } from '../../types';
+import { TestExecutionData, TestAttachment, TestAnnotation, TestStep, TestRetryInfo, formatErrorMessage, formatStackTrace } from '../../types';
 
 // Fonction pour générer une couleur unique basée sur le nom du tag
 const getTagColor = (tag: string): { background: string; color: string; border: string } => {
@@ -77,7 +77,7 @@ interface TestDetailPanelProps {
   onClose: () => void;
 }
 
-type TabType = 'overview' | 'steps' | 'attachments' | 'errors' | 'timeline';
+type TabType = 'overview' | 'steps' | 'attachments' | 'errors' | 'timeline' | 'retries';
 
 // Utilitaires pour gérer les query parameters
 const getQueryParam = (param: string): string | null => {
@@ -101,7 +101,7 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
   // Initialiser l'onglet actif depuis l'URL ou par défaut 'overview'
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tabFromUrl = getQueryParam('detailTab');
-    const validTabs: TabType[] = ['overview', 'steps', 'attachments', 'errors', 'timeline'];
+    const validTabs: TabType[] = ['overview', 'steps', 'attachments', 'errors', 'timeline', 'retries'];
     return validTabs.includes(tabFromUrl as TabType) ? (tabFromUrl as TabType) : 'overview';
   });
   const [selectedAttachment, setSelectedAttachment] = useState<TestAttachment | null>(null);
@@ -245,11 +245,14 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
         
         {step.error && (
           <div className="step-error-details">
-            <div className="error-message">{step.error.message}</div>
+            <div 
+              className="error-message" 
+              dangerouslySetInnerHTML={{ __html: formatErrorMessage(step.error.message) }}
+            />
             {step.error.stack && (
               <details className="error-stack">
                 <summary>Stack Trace</summary>
-                <pre>{step.error.stack}</pre>
+                <pre dangerouslySetInnerHTML={{ __html: formatStackTrace(step.error.stack) }} />
               </details>
             )}
           </div>
@@ -501,6 +504,14 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
         >
           Timeline
         </button>
+        {test.retryHistory && test.retryHistory.length > 0 && (
+          <button
+            onClick={() => handleTabChange('retries')}
+            className={`tab ${activeTab === 'retries' ? 'active' : ''}`}
+          >
+            Retries ({test.retryHistory.length})
+          </button>
+        )}
       </div>
 
       <div className="panel-content">
@@ -674,13 +685,14 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
                         </span>
                       )}
                     </div>
-                    <div className="error-message">
-                      {error.message}
-                    </div>
+                    <div 
+                      className="error-message" 
+                      dangerouslySetInnerHTML={{ __html: formatErrorMessage(error.message) }}
+                    />
                     {error.stack && (
                       <details className="error-stack">
                         <summary>Stack Trace</summary>
-                        <pre>{error.stack}</pre>
+                        <pre dangerouslySetInnerHTML={{ __html: formatStackTrace(error.stack) }} />
                       </details>
                     )}
                   </div>
@@ -739,6 +751,72 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
                   <p>Duration: {formatDuration(test.duration)}</p>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'retries' && (
+          <div className="retries-tab">
+            <div className="retries-list">
+              {test.retryHistory?.map((retry, index) => (
+                <div key={index} className="retry-item">
+                  <div className="retry-header">
+                    <div className="retry-info">
+                      <h4>
+                        {index === 0 ? 'Initial Execution' : `Retry ${index}`}
+                      </h4>
+                      <span 
+                        className="status-pill" 
+                        style={{
+                          backgroundColor: getStatusPillColors(retry.status).background,
+                          color: getStatusPillColors(retry.status).color,
+                          borderColor: getStatusPillColors(retry.status).border
+                        }}
+                      >
+                        {retry.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="retry-duration">
+                      {formatDuration(retry.duration)}
+                    </div>
+                  </div>
+                  <div className="retry-details">
+                    <div className="retry-meta">
+                      <span><strong>Started:</strong> {formatDateTime(retry.startTime)}</span>
+                      <span><strong>Ended:</strong> {formatDateTime(retry.endTime)}</span>
+                    </div>
+                    {retry.errors && retry.errors.length > 0 && (
+                      <div className="retry-errors">
+                        <h5>Errors:</h5>
+                        {retry.errors.map((error, errorIndex) => (
+                          <div key={errorIndex} className="error-message">
+                            <div 
+                              className="error-text" 
+                              dangerouslySetInnerHTML={{ __html: formatErrorMessage(error.message) }}
+                            />
+                            {error.location && (
+                              <div className="error-location">
+                                {error.location.file}:{error.location.line}
+                                {error.location.column && `:${error.location.column}`}
+                              </div>
+                            )}
+                            {error.stack && (
+                              <details className="error-stack">
+                                <summary>Stack Trace</summary>
+                                <pre dangerouslySetInnerHTML={{ __html: formatStackTrace(error.stack) }} />
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )) || (
+                <div className="no-retries">
+                  <p>This test was not retried.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
