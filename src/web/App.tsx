@@ -6,6 +6,16 @@ import { ThemeProvider, ThemeToggle } from './components/ThemeProvider';
 import { ReportData, TestExecutionData } from '../types';
 import './styles.css';
 
+// Interface pour les filtres
+export interface TestFilters {
+  status: string[];
+  project: string[];
+  tags: string[];
+  minDuration: number;
+  maxDuration: number;
+  search: string;
+}
+
 // Utilitaires pour gérer les query parameters
 const getQueryParam = (param: string): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -24,6 +34,69 @@ const setQueryParam = (param: string, value: string | null) => {
   window.history.replaceState({}, '', newUrl);
 };
 
+// Utilitaires pour gérer les filtres dans l'URL
+const getFiltersFromUrl = (): Partial<TestFilters> => {
+  const filters: Partial<TestFilters> = {};
+  
+  const status = getQueryParam('status');
+  if (status) filters.status = status.split(',');
+  
+  const project = getQueryParam('project');
+  if (project) filters.project = project.split(',');
+  
+  const tags = getQueryParam('tags');
+  if (tags) filters.tags = tags.split(',');
+  
+  const search = getQueryParam('search');
+  if (search) filters.search = search;
+  
+  const minDuration = getQueryParam('minDuration');
+  if (minDuration) filters.minDuration = parseInt(minDuration, 10);
+  
+  const maxDuration = getQueryParam('maxDuration');
+  if (maxDuration) filters.maxDuration = parseInt(maxDuration, 10);
+  
+  return filters;
+};
+
+const setFiltersInUrl = (filters: Partial<TestFilters>) => {
+  if (filters.status?.length) {
+    setQueryParam('status', filters.status.join(','));
+  } else {
+    setQueryParam('status', null);
+  }
+  
+  if (filters.project?.length) {
+    setQueryParam('project', filters.project.join(','));
+  } else {
+    setQueryParam('project', null);
+  }
+  
+  if (filters.tags?.length) {
+    setQueryParam('tags', filters.tags.join(','));
+  } else {
+    setQueryParam('tags', null);
+  }
+  
+  if (filters.search) {
+    setQueryParam('search', filters.search);
+  } else {
+    setQueryParam('search', null);
+  }
+  
+  if (filters.minDuration !== undefined && filters.minDuration > 0) {
+    setQueryParam('minDuration', filters.minDuration.toString());
+  } else {
+    setQueryParam('minDuration', null);
+  }
+  
+  if (filters.maxDuration !== undefined && filters.maxDuration < Number.MAX_SAFE_INTEGER) {
+    setQueryParam('maxDuration', filters.maxDuration.toString());
+  } else {
+    setQueryParam('maxDuration', null);
+  }
+};
+
 const App: React.FC = () => {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [selectedTest, setSelectedTest] = useState<TestExecutionData | null>(null);
@@ -35,6 +108,8 @@ const App: React.FC = () => {
     const tabFromUrl = getQueryParam('tab');
     return (tabFromUrl === 'tests' || tabFromUrl === 'dashboard') ? tabFromUrl : 'dashboard';
   });
+  // État des filtres pour le tableau des tests
+  const [filters, setFilters] = useState<Partial<TestFilters>>({});
 
   useEffect(() => {
     loadReportData();
@@ -49,6 +124,11 @@ const App: React.FC = () => {
 
   const loadStateFromUrl = () => {
     const testId = getQueryParam('testId');
+    
+    // Charger les filtres depuis l'URL
+    const urlFilters = getFiltersFromUrl();
+    setFilters(urlFilters);
+    
     if (testId) {
       // Trouver le test par ID
       const allTests = reportData!.suites.flatMap(suite => suite.tests);
@@ -68,6 +148,47 @@ const App: React.FC = () => {
   const updateUrlState = (tab: 'dashboard' | 'tests', testId?: string | null) => {
     setQueryParam('tab', tab);
     setQueryParam('testId', testId || null);
+  };
+
+  // Nouvelle fonction pour naviguer vers les tests avec des filtres
+  const navigateToTestsWithFilter = (filterType: keyof TestFilters, filterValue: string | string[]) => {
+    const newFilters: Partial<TestFilters> = {};
+    
+    if (filterType === 'status' || filterType === 'project' || filterType === 'tags') {
+      if (Array.isArray(filterValue)) {
+        newFilters[filterType] = filterValue;
+      } else {
+        newFilters[filterType] = [filterValue];
+      }
+    } else if (filterType === 'search') {
+      newFilters[filterType] = Array.isArray(filterValue) ? filterValue[0] : filterValue;
+    } else if (filterType === 'minDuration' || filterType === 'maxDuration') {
+      const numValue = Array.isArray(filterValue) ? parseInt(filterValue[0], 10) : parseInt(filterValue, 10);
+      if (!isNaN(numValue)) {
+        newFilters[filterType] = numValue;
+      }
+    }
+    
+    // Appliquer les filtres dans l'URL
+    setFiltersInUrl(newFilters);
+    setFilters(newFilters);
+    
+    // Naviguer vers l'onglet tests
+    setActiveTab('tests');
+    setQueryParam('tab', 'tests');
+    
+    // Fermer le panel si ouvert
+    if (isPanelOpen) {
+      setSelectedTest(null);
+      setIsPanelOpen(false);
+      setQueryParam('testId', null);
+    }
+  };
+
+  // Fonction pour mettre à jour les filtres depuis le TestTable
+  const handleFiltersChange = (newFilters: Partial<TestFilters>) => {
+    setFilters(newFilters);
+    setFiltersInUrl(newFilters);
   };
 
   const loadReportData = async () => {
@@ -176,7 +297,10 @@ const App: React.FC = () => {
           <div className="tab-content">
             {activeTab === 'dashboard' && (
               <section className="dashboard-section">
-                <Dashboard reportData={reportData} />
+                <Dashboard 
+                  reportData={reportData} 
+                  onNavigateToTests={navigateToTestsWithFilter}
+                />
               </section>
             )}
 
@@ -186,6 +310,8 @@ const App: React.FC = () => {
                   tests={allTests}
                   onTestSelect={handleTestSelect}
                   selectedTestId={selectedTest?.id}
+                  filters={filters}
+                  onFiltersChange={handleFiltersChange}
                 />
               </section>
             )}

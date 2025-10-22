@@ -520,14 +520,8 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
             <div className="info-grid">
               <div className="info-item">
                 <label>File:</label>
-                <span className="file-path">{test.file}</span>
+                <span className="file-path">{test.file}{test.line ? `:${test.line}` : ''}</span>
               </div>
-              {test.line && (
-                <div className="info-item">
-                  <label>Line:</label>
-                  <span>{test.line}</span>
-                </div>
-              )}
               <div className="info-item">
                 <label>Duration:</label>
                 <span className={`duration ${test.duration > 10000 ? 'slow' : test.duration > 5000 ? 'medium' : 'fast'}`}>

@@ -1,15 +1,22 @@
 import React from 'react';
 import { ReportData } from '../../types';
+import { TestFilters } from '../App';
 
 interface MetricCardProps {
   title: string;
   value: number | string;
   color: string;
   percentage?: number;
+  onClick?: () => void;
+  clickable?: boolean;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, color, percentage }) => (
-  <div className="metric-card">
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, color, percentage, onClick, clickable = false }) => (
+  <div 
+    className={`metric-card ${clickable ? 'metric-card-clickable' : ''}`}
+    onClick={onClick}
+    style={{ cursor: clickable ? 'pointer' : 'default' }}
+  >
     <div className="metric-header">
       <h3>{title}</h3>
       {percentage !== undefined && (
@@ -21,14 +28,20 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, color, percentage
     <div className="metric-value" style={{ color }}>
       {value}
     </div>
+    {clickable && (
+      <div className="metric-card-overlay">
+        <span>Click to filter tests</span>
+      </div>
+    )}
   </div>
 );
 
 interface DashboardProps {
   reportData: ReportData;
+  onNavigateToTests: (filterType: keyof TestFilters, filterValue: string | string[]) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ reportData, onNavigateToTests }) => {
   const { metadata } = reportData;
   
   const formatDuration = (ms: number): string => {
@@ -95,29 +108,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ reportData }) => {
           value={metadata.passed}
           color="#059669"
           percentage={passRate}
+          clickable={metadata.passed > 0}
+          onClick={() => metadata.passed > 0 && onNavigateToTests('status', 'passed')}
         />
         <MetricCard
           title="Failed"
           value={metadata.failed}
           color="#dc2626"
           percentage={failRate}
+          clickable={metadata.failed > 0}
+          onClick={() => metadata.failed > 0 && onNavigateToTests('status', 'failed')}
         />
         <MetricCard
           title="Skipped"
           value={metadata.skipped}
           color="#d97706"
           percentage={skipRate}
+          clickable={metadata.skipped > 0}
+          onClick={() => metadata.skipped > 0 && onNavigateToTests('status', 'skipped')}
         />
         <MetricCard
           title="Flaky"
           value={metadata.flaky}
           color="#f59e0b"
           percentage={flakyRate}
+          clickable={metadata.flaky > 0}
+          onClick={() => metadata.flaky > 0 && onNavigateToTests('status', 'flaky')}
         />
         <MetricCard
           title="Timed Out"
           value={metadata.timedOut}
           color="#7c2d12"
+          clickable={metadata.timedOut > 0}
+          onClick={() => metadata.timedOut > 0 && onNavigateToTests('status', 'timedOut')}
         />
       </div>
 

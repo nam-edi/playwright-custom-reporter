@@ -382,30 +382,12 @@ export class DataCollector implements Reporter {
   }
 
   private extractTags(test: TestCase): string[] {
-    const tags: string[] = [];
-    const tagRegex = /@(\w+)/g;
-
-    // Extraire les tags du titre du test
-    let match;
-    while ((match = tagRegex.exec(test.title)) !== null) {
-      tags.push(match[1]);
-    }
-
-    // Parcourir la hiérarchie des suites parentes pour hériter des tags
-    let current: Suite | undefined = test.parent;
-    while (current && current.title) {
-      // Réinitialiser la regex pour cette suite
-      tagRegex.lastIndex = 0;
-      while ((match = tagRegex.exec(current.title)) !== null) {
-        // Ajouter seulement si le tag n'est pas déjà présent
-        if (!tags.includes(match[1])) {
-          tags.push(match[1]);
-        }
-      }
-      current = current.parent;
-    }
-
-    return tags;
+    // Playwright fournit maintenant directement tous les tags via test.tags
+    // Cette propriété inclut :
+    // - Les tags définis via l'option 'tag' dans les tests et describes
+    // - Les tags hérités des suites parentes
+    // - Les tags extraits automatiquement des titres avec @
+    return test.tags || [];
   }
 
   private extractAnnotations(test: TestCase): TestAnnotation[] {

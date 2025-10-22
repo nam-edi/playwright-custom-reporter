@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TestExecutionData } from '../../types';
+import { TestFilters } from '../App';
 
 // Fonction pour générer une couleur unique basée sur le nom du tag
 const getTagColor = (tag: string): { background: string; color: string; border: string } => {
@@ -75,34 +76,43 @@ interface TestTableProps {
   tests: TestExecutionData[];
   onTestSelect: (test: TestExecutionData) => void;
   selectedTestId?: string;
+  filters: Partial<TestFilters>;
+  onFiltersChange: (filters: Partial<TestFilters>) => void;
 }
 
 type SortField = 'title' | 'status' | 'duration' | 'file' | 'project';
 type SortDirection = 'asc' | 'desc';
 
-interface FilterState {
-  status: string[];
-  project: string[];
-  tags: string[];
-  minDuration: number;
-  maxDuration: number;
-  search: string;
-}
-
-export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selectedTestId }) => {
+export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selectedTestId, filters: externalFilters, onFiltersChange }) => {
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [filters, setFilters] = useState<FilterState>({
+  const [showAllTags, setShowAllTags] = useState(false);
+  // État local des filtres initialisé avec les filtres externes
+  const [filters, setFilters] = useState<Partial<TestFilters>>(() => ({
     status: [],
     project: [],
     tags: [],
     minDuration: 0,
     maxDuration: Number.MAX_SAFE_INTEGER,
-    search: ''
-  });
-  const [showFilters, setShowFilters] = useState(false);
+    search: '',
+    ...externalFilters
+  }));
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+
+  // Synchroniser les filtres externes avec l'état local
+  useEffect(() => {
+    setFilters(prev => ({
+      status: [],
+      project: [],
+      tags: [],
+      minDuration: 0,
+      maxDuration: Number.MAX_SAFE_INTEGER,
+      search: '',
+      ...prev,
+      ...externalFilters
+    }));
+  }, [externalFilters]);
 
   // Extraire les valeurs uniques pour les filtres
   const uniqueStatuses = useMemo(() => {
@@ -130,23 +140,25 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
   const filteredAndSortedTests = useMemo(() => {
     let filtered = tests.filter(test => {
       // Filtre par statut
-      if (filters.status.length > 0 && !filters.status.includes(test.status)) {
+      if (filters.status && filters.status.length > 0 && !filters.status.includes(test.status)) {
         return false;
       }
 
       // Filtre par projet
-      if (filters.project.length > 0 && !filters.project.includes(test.project)) {
+      if (filters.project && filters.project.length > 0 && !filters.project.includes(test.project)) {
         return false;
       }
 
       // Filtre par tags
-      if (filters.tags.length > 0) {
-        const hasMatchingTag = filters.tags.some(tag => test.tags.includes(tag));
+      if (filters.tags && filters.tags.length > 0) {
+        const hasMatchingTag = filters.tags.some((tag: string) => test.tags.includes(tag));
         if (!hasMatchingTag) return false;
       }
 
       // Filtre par durée
-      if (test.duration < filters.minDuration || test.duration > filters.maxDuration) {
+      const minDuration = filters.minDuration || 0;
+      const maxDuration = filters.maxDuration || Number.MAX_SAFE_INTEGER;
+      if (test.duration < minDuration || test.duration > maxDuration) {
         return false;
       }
 
@@ -200,36 +212,54 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
     }
   };
 
-  const handleFilterChange = (key: keyof FilterState, value: any) => {
-    setFilters(prev => ({
-      ...prev,
+  const handleFilterChange = (key: keyof TestFilters, value: any) => {
+    let newFilters = {
+      ...filters,
       [key]: value
-    }));
+    };
+
+    // Validation pour les durées min/max
+    if (key === 'minDuration') {
+      const currentMax = newFilters.maxDuration === Number.MAX_SAFE_INTEGER || newFilters.maxDuration === undefined ? maxDuration : newFilters.maxDuration;
+      if (currentMax !== undefined && value > currentMax) {
+        newFilters.maxDuration = value;
+      }
+    } else if (key === 'maxDuration') {
+      const currentMin = newFilters.minDuration || 0;
+      if (value < currentMin) {
+        newFilters.minDuration = value;
+      }
+    }
+
+    setFilters(newFilters);
+    onFiltersChange(newFilters);
   };
 
   const toggleFilter = (key: 'status' | 'project' | 'tags', value: string) => {
-    setFilters(prev => {
-      const currentArray = prev[key] as string[];
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value];
-      
-      return {
-        ...prev,
-        [key]: newArray
-      };
-    });
+    const currentArray = (filters[key] as string[]) || [];
+    const newArray = currentArray.includes(value)
+      ? currentArray.filter(item => item !== value)
+      : [...currentArray, value];
+    
+    const newFilters = {
+      ...filters,
+      [key]: newArray
+    };
+    setFilters(newFilters);
+    onFiltersChange(newFilters);
   };
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters: Partial<TestFilters> = {
       status: [],
       project: [],
       tags: [],
       minDuration: 0,
       maxDuration: Number.MAX_SAFE_INTEGER,
       search: ''
-    });
+    };
+    setFilters(newFilters);
+    onFiltersChange(newFilters);
   };
 
   // Fonctions de regroupement supprimées
@@ -321,18 +351,11 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
             <input
               type="text"
               placeholder="Search tests..."
-              value={filters.search}
+              value={filters.search || ''}
               onChange={(e) => handleFilterChange('search', e.target.value)}
               className="search-input"
             />
           </div>
-          {/* Contrôles de vue supprimés pour simplifier */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`filter-toggle ${showFilters ? 'active' : ''}`}
-          >
-            🔍 Filters ({Object.values(filters).flat().filter(v => v && v !== 0 && v !== Number.MAX_SAFE_INTEGER).length})
-          </button>
           <div className="results-count">
             {filteredAndSortedTests.length} of {tests.length} tests
           </div>
@@ -341,102 +364,130 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
           </div>
         </div>
 
-        {showFilters && (
-          <div className="filters-panel">
-            <div className="filter-section">
-              <h4>Status</h4>
-              <div className="filter-options">
-                {uniqueStatuses.map(status => (
-                  <label key={status} className="filter-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={filters.status.includes(status)}
-                      onChange={() => toggleFilter('status', status)}
-                    />
-                    <span 
-                      className="status-pill filter-status"
+        {/* Barre de filtres compacte toujours visible */}
+        <div className="filters-bar">
+          {/* Filtres Status */}
+          <div className="filter-group">
+            <label className="filter-label">Status:</label>
+            <div className="filter-chips">
+              {uniqueStatuses.map(status => (
+                <button
+                  key={status}
+                  onClick={() => toggleFilter('status', status)}
+                  className={`filter-chip status-chip ${(filters.status || []).includes(status) ? 'active' : ''}`}
+                  style={{
+                    backgroundColor: (filters.status || []).includes(status) 
+                      ? getStatusPillColors(status).background 
+                      : 'transparent',
+                    color: (filters.status || []).includes(status) 
+                      ? getStatusPillColors(status).color 
+                      : 'var(--text-secondary)',
+                    borderColor: getStatusPillColors(status).border
+                  }}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filtres Project */}
+          {uniqueProjects.length > 1 && (
+            <div className="filter-group">
+              <label className="filter-label">Project:</label>
+              <div className="filter-chips">
+                {uniqueProjects.map(project => (
+                  <button
+                    key={project}
+                    onClick={() => toggleFilter('project', project)}
+                    className={`filter-chip ${(filters.project || []).includes(project) ? 'active' : ''}`}
+                  >
+                    {project}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Filtres Tags */}
+          {uniqueTags.length > 0 && (
+            <div className="filter-group">
+              <label className="filter-label">Tags:</label>
+              <div className="filter-chips">
+                {(showAllTags ? uniqueTags : uniqueTags.slice(0, 8)).map(tag => {
+                  const tagColors = getTagColor(tag);
+                  const isActive = (filters.tags || []).includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => toggleFilter('tags', tag)}
+                      className={`filter-chip tag-chip ${isActive ? 'active' : ''}`}
                       style={{
-                        backgroundColor: getStatusPillColors(status).background,
-                        color: getStatusPillColors(status).color,
-                        borderColor: getStatusPillColors(status).border
+                        backgroundColor: isActive ? tagColors.background : 'transparent',
+                        color: isActive ? tagColors.color : 'var(--text-secondary)',
+                        borderColor: tagColors.border
                       }}
                     >
-                      {status.toUpperCase()}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-section">
-              <h4>Project</h4>
-              <div className="filter-options">
-                {uniqueProjects.map(project => (
-                  <label key={project} className="filter-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={filters.project.includes(project)}
-                      onChange={() => toggleFilter('project', project)}
-                    />
-                    <span>{project}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-section">
-              <h4>Tags</h4>
-              <div className="filter-options tags-filter">
-                {uniqueTags.map(tag => {
-                  const tagColors = getTagColor(tag);
-                  return (
-                    <label key={tag} className="filter-checkbox tag-item">
-                      <input
-                        type="checkbox"
-                        checked={filters.tags.includes(tag)}
-                        onChange={() => toggleFilter('tags', tag)}
-                      />
-                      <span 
-                        className="tag"
-                        style={{
-                          backgroundColor: tagColors.background,
-                          color: tagColors.color,
-                          borderColor: tagColors.border
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    </label>
+                      {tag}
+                    </button>
                   );
                 })}
+                {uniqueTags.length > 8 && (
+                  <button
+                    onClick={() => setShowAllTags(!showAllTags)}
+                    className="filter-chip more-tags-button"
+                    title={showAllTags ? "Masquer les tags supplémentaires" : "Afficher tous les tags"}
+                  >
+                    {showAllTags ? '- Moins' : `+ ${uniqueTags.length - 8} more`}
+                  </button>
+                )}
               </div>
             </div>
+          )}
 
-            <div className="filter-section">
-              <h4>Duration</h4>
-              <div className="duration-filter">
-                <input
-                  type="range"
-                  min="0"
-                  max={maxDuration}
-                  value={filters.maxDuration === Number.MAX_SAFE_INTEGER ? maxDuration : filters.maxDuration}
-                  onChange={(e) => handleFilterChange('maxDuration', Number(e.target.value))}
-                  className="duration-slider"
-                />
-                <div className="duration-labels">
-                  <span>0ms</span>
-                  <span>Max: {formatDuration(filters.maxDuration === Number.MAX_SAFE_INTEGER ? maxDuration : filters.maxDuration)}</span>
+          {/* Filtre Duration compact */}
+          <div className="filter-group duration-group">
+            <label className="filter-label">Duration:</label>
+            <div className="duration-filter-compact">
+              <div className="duration-range-slider">
+                <div className="range-slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max={maxDuration}
+                    value={filters.minDuration || 0}
+                    onChange={(e) => handleFilterChange('minDuration', Number(e.target.value))}
+                    className="range-slider range-slider-min"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max={maxDuration}
+                    value={(filters.maxDuration === undefined || filters.maxDuration === Number.MAX_SAFE_INTEGER) ? maxDuration : filters.maxDuration}
+                    onChange={(e) => handleFilterChange('maxDuration', Number(e.target.value))}
+                    className="range-slider range-slider-max"
+                  />
+                </div>
+                <div className="range-values">
+                  <span className="range-value-min">
+                    {formatDuration(filters.minDuration || 0)}
+                  </span>
+                  <span className="range-separator">-</span>
+                  <span className="range-value-max">
+                    {formatDuration((filters.maxDuration === undefined || filters.maxDuration === Number.MAX_SAFE_INTEGER) ? maxDuration : filters.maxDuration)}
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div className="filter-actions">
-              <button onClick={clearFilters} className="clear-filters">
-                Clear All Filters
-              </button>
-            </div>
           </div>
-        )}
+
+          {/* Actions */}
+          <div className="filter-actions-compact">
+            <button onClick={clearFilters} className="clear-filters-compact" title="Clear all filters">
+              ✕
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="table-wrapper">
