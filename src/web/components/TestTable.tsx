@@ -482,7 +482,7 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
           </div>
 
           {/* Actions */}
-          <div className="filter-actions-compact">
+          <div className="filter-group">
             <button onClick={clearFilters} className="clear-filters-compact" title="Clear all filters">
               ✕
             </button>
@@ -505,9 +505,6 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
               </th>
               <th onClick={() => handleSort('duration')} className="sortable">
                 Duration {sortField === 'duration' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </th>
-              <th onClick={() => handleSort('project')} className="sortable">
-                Project {sortField === 'project' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th>Tags</th>
               <th>Retries</th>
@@ -534,8 +531,8 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                   </span>
                 </td>
                 <td className="test-title">
-                  <div className="title-content">
-                    <span className="full-title">
+                  <div className="test-info">
+                    <div className="test-name">
                       {test.describeBlocks.length > 0 && (
                         <>
                           {test.describeBlocks
@@ -550,7 +547,7 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                         </>
                       )}
                       <span className="title-text">{test.title}</span>
-                    </span>
+                    </div>
                   </div>
                 </td>
                 <td className="file-cell">
@@ -562,20 +559,23 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                   </div>
                 </td>
                 <td className="duration-cell">
-                  <span className={`duration ${test.duration > 10000 ? 'slow' : test.duration > 5000 ? 'medium' : 'fast'}`}>
+                  <span className={`test-duration ${test.duration > 10000 ? 'long' : ''}`}>
                     {formatDuration(test.duration)}
                   </span>
                 </td>
-                <td className="project-cell">
-                  <span className="project-badge">{test.project}</span>
-                </td>
                 <td className="tags-cell">
-                  <div className="tags-container">
+                  <div 
+                    className="tags-container"
+                    title={(() => {
+                      const filteredTags = test.tags.filter(tag => !uniqueProjects.includes(tag));
+                      return filteredTags.length > 2 ? filteredTags.join(', ') : '';
+                    })()}
+                  >
                     {(() => {
                       const filteredTags = test.tags.filter(tag => !uniqueProjects.includes(tag));
                       return (
                         <>
-                          {filteredTags.slice(0, 3).map(tag => {
+                          {filteredTags.slice(0, 2).map(tag => {
                             const tagColors = getTagColor(tag);
                             return (
                               <span 
@@ -591,8 +591,8 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                               </span>
                             );
                           })}
-                          {filteredTags.length > 3 && (
-                            <span className="tag-more">+{filteredTags.length - 3}</span>
+                          {filteredTags.length > 2 && (
+                            <span className="tag-more">+{filteredTags.length - 2}</span>
                           )}
                         </>
                       );
@@ -601,7 +601,7 @@ export const TestTable: React.FC<TestTableProps> = ({ tests, onTestSelect, selec
                 </td>
                 <td className="retries-cell">
                   {test.retries > 0 && (
-                    <span className="retry-badge">{test.retries}</span>
+                    <span className="test-retries">{test.retries}</span>
                   )}
                 </td>
               </tr>

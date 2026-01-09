@@ -118,6 +118,12 @@ export const TestDetailPanel: React.FC<TestDetailPanelProps> = ({ test, isOpen, 
     }
   }, [isOpen, test, activeTab]);
 
+  // Réinitialiser la sélection d'attachments quand on change de test
+  useEffect(() => {
+    setSelectedAttachment(null);
+    setExpandedSteps(new Set());
+  }, [test?.id]);
+
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     if (isOpen && test) {
