@@ -1,6 +1,6 @@
 {
   "name": "@naamedi/playwright-reporter",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "A custom reporter for Playwright with dashboard, detailed test results, and modern UI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
